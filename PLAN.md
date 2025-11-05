@@ -20,16 +20,16 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 
 ### Steps
 
-- [x] copy main.ts to reference.ts for future reference
-- [x] delete everything in main.ts
-- [x] put a basic leaflet map on the screen
-- [x] draw the player's location on the map
-- [x] draw a rectangle representing one cell on the map
-- [x] use loops to draw a whole grid of cells on the map
-- [x] draw cells to the edge of the map
-- [ ] player can only interact with cells near them
-- [x] the state of cells is consistent across loads
-- [ ] player can pick up tokens, and they remove them from the cell and put it into their inventory
-- [ ] displays token in inventory when it is held
-- [ ] if the player has a token, they can place it in a cell with an equal token value to double it
-- [ ] the game detects when a player has sufficient tokens in hand
+- [x] **#Step 1:** copy main.ts to reference.ts for future reference
+- [x] **#Step 2:** delete everything in main.ts
+- [x] **#Step 3:** put a basic leaflet map on the screen
+- [x] **#Step 4:** draw the player's location on the map
+- [x] **#Step 5:** draw a rectangle representing one cell on the map
+- [x] **#Step 6:** use loops to draw a whole grid of cells on the map
+- [x] **#Step 7:** draw cells to the edge of the map
+- [ ] **#Step 8:** player can only interact with cells near them
+- [x] **#Step 9:** the state of cells is consistent across loads
+- [ ] **#Step 10:** player can pick up tokens, and they remove them from the cell and put it into their inventory
+- [ ] **#Step 11:** displays token in inventory when it is held
+- [ ] **#Step 12:** if the player has a token, they can place it in a cell with an equal token value to double it
+- [ ] **#Step 13:** the game detects when a player has sufficient tokens in hand
