@@ -17,6 +17,9 @@ document.body.append(mapDiv);
 const SPAWN_POINT = leaflet.latLng(57.476538, -4.225123);
 
 const GAMEPLAY_ZOOM_LEVEL = 19;
+const TILE_DEGREES = 1e-4;
+const NEIGHBORHOOD_SIZE_X = 22;
+const NEIGHBORHOOD_SIZE_Y = 6;
 
 const map = leaflet.map(mapDiv, {
   center: SPAWN_POINT,
@@ -37,3 +40,20 @@ leaflet
 
 const playerLocation = leaflet.marker(SPAWN_POINT);
 playerLocation.addTo(map);
+
+function spawnRectangle(i: number, j: number) {
+  const origin = SPAWN_POINT;
+  const bounds = leaflet.latLngBounds([
+    [origin.lat + i * TILE_DEGREES, origin.lng + j * TILE_DEGREES],
+    [origin.lat + (i + 1) * TILE_DEGREES, origin.lng + (j + 1) * TILE_DEGREES],
+  ]);
+
+  const rect = leaflet.rectangle(bounds);
+  rect.addTo(map);
+}
+
+for (let i = -NEIGHBORHOOD_SIZE_Y; i < NEIGHBORHOOD_SIZE_Y; i++) {
+  for (let j = -NEIGHBORHOOD_SIZE_X; j < NEIGHBORHOOD_SIZE_X; j++) {
+    spawnRectangle(i, j);
+  }
+}
