@@ -7,6 +7,7 @@ import "./style.css"; // student-controlled page style
 
 // Fix missing marker images
 import "./_leafletWorkaround.ts"; // fixes for missing Leaflet images
+import luck from "./_luck.ts";
 
 // Import our luck function
 
@@ -15,6 +16,7 @@ mapDiv.id = "map";
 document.body.append(mapDiv);
 
 const SPAWN_POINT = leaflet.latLng(57.476538, -4.225123);
+const RECTANGLE_SPAWN_PROBABILITY = 0.2;
 
 const GAMEPLAY_ZOOM_LEVEL = 19;
 const TILE_DEGREES = 1e-4;
@@ -54,6 +56,8 @@ function spawnRectangle(i: number, j: number) {
 
 for (let i = -NEIGHBORHOOD_SIZE_Y; i < NEIGHBORHOOD_SIZE_Y; i++) {
   for (let j = -NEIGHBORHOOD_SIZE_X; j < NEIGHBORHOOD_SIZE_X; j++) {
-    spawnRectangle(i, j);
+    if (luck([i, j].toString()) < RECTANGLE_SPAWN_PROBABILITY) {
+      spawnRectangle(i, j);
+    }
   }
 }
