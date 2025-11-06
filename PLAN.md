@@ -32,4 +32,4 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 - [x] **#Step 10:** player can pick up tokens, and they remove them from the cell and put it into their inventory
 - [x] **#Step 11:** displays token in inventory when it is held
 - [x] **#Step 12:** if the player has a token, they can place it in a cell with an equal token value to double it
-- [ ] **#Step 13:** the game detects when a player has sufficient tokens in hand
+- [x] **#Step 13:** the game detects when a player has sufficient tokens in hand

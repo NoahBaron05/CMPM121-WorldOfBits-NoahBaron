@@ -23,6 +23,8 @@ const TILE_DEGREES = 1e-4;
 const NEIGHBORHOOD_SIZE_X = 22;
 const NEIGHBORHOOD_SIZE_Y = 6;
 
+const winCount: number = 16;
+
 interface token {
   value: number | null;
 }
@@ -78,6 +80,7 @@ function spawnRectangle(i: number, j: number) {
         rectToken.value = null;
         inventoryDiv.innerText = `Inventory: ${playerInventory.value}`;
         rect.closePopup();
+        winCondition(playerInventory.value!, winCount);
       });
     } else if (rectToken.value == null && playerInventory.value !== 0) {
       popupDiv.innerHTML = `
@@ -133,3 +136,12 @@ const inventoryDiv = document.createElement("div");
 inventoryDiv.id = "inventory";
 inventoryDiv.innerText = "\nInventory: ";
 document.body.append(inventoryDiv);
+
+function winCondition(currentToken: number, winCount: number) {
+  if (currentToken == winCount) {
+    const winDiv = document.createElement("div");
+    winDiv.id = "win";
+    winDiv.innerText = "\nCongratulations! You won!";
+    document.body.append(winDiv);
+  }
+}
