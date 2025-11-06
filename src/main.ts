@@ -71,6 +71,13 @@ function spawnRectangle(i: number, j: number) {
   const rect = leaflet.rectangle(bounds);
   rect.addTo(map);
 
+  const tooltip = leaflet.tooltip({
+    permanent: true,
+    direction: "center",
+    className: "tokenTooltip",
+  }).setContent(rectToken.value.toString());
+  rect.bindTooltip(tooltip);
+
   rect.bindPopup(() => {
     const popupDiv = document.createElement("div");
 
@@ -105,6 +112,7 @@ function spawnRectangle(i: number, j: number) {
         inventoryDiv.innerText = `Inventory: ${playerInventory.value}`;
         rect.closePopup();
         winCondition(playerInventory.value!, winCount);
+        tooltip.setContent(rectToken.value.toString());
       });
     } else if (rectToken.value == 0 && playerInventory.value !== 0) {
       popupDiv.innerHTML = `
@@ -116,6 +124,7 @@ function spawnRectangle(i: number, j: number) {
         playerInventory.value = 0;
         inventoryDiv.innerText = `Inventory: `;
         rect.closePopup();
+        tooltip.setContent(rectToken.value.toString());
       });
     } else if (
       rectToken.value == playerInventory.value && rectToken.value !== 0
@@ -129,6 +138,7 @@ function spawnRectangle(i: number, j: number) {
         playerInventory.value = 0;
         inventoryDiv.innerText = `Inventory: `;
         rect.closePopup();
+        tooltip.setContent(rectToken.value.toString());
       });
     } else if (rectToken.value != playerInventory.value) {
       popupDiv.innerHTML = `
