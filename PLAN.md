@@ -27,7 +27,7 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 - [x] **#Step 5:** draw a rectangle representing one cell on the map
 - [x] **#Step 6:** use loops to draw a whole grid of cells on the map
 - [x] **#Step 7:** draw cells to the edge of the map
-- [ ] **#Step 8:** player can only interact with cells near them
+- [x] **#Step 8:** player can only interact with cells near them
 - [x] **#Step 9:** the state of cells is consistent across loads
 - [x] **#Step 10:** player can pick up tokens, and they remove them from the cell and put it into their inventory
 - [x] **#Step 11:** displays token in inventory when it is held

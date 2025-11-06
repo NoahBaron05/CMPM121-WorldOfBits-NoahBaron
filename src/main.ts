@@ -22,6 +22,7 @@ const GAMEPLAY_ZOOM_LEVEL = 19;
 const TILE_DEGREES = 1e-4;
 const NEIGHBORHOOD_SIZE_X = 22;
 const NEIGHBORHOOD_SIZE_Y = 6;
+const MAX_REACH_DISTANCE = 25;
 
 const winCount: number = 16;
 
@@ -70,7 +71,19 @@ function spawnRectangle(i: number, j: number) {
   rect.bindPopup(() => {
     const popupDiv = document.createElement("div");
 
-    if (rectToken.value !== null && playerInventory.value == 0) {
+    const rectangleCenter = bounds.getCenter();
+    const playerPosition = playerLocation.getLatLng();
+    const distance = map.distance(rectangleCenter, playerPosition);
+
+    if (distance > MAX_REACH_DISTANCE) {
+      popupDiv.innerHTML = `
+        <p>To far away from target</p>
+        <button id="closeButton">Close popup</button>
+      `;
+      popupDiv.querySelector("#closeButton")!.addEventListener("click", () => {
+        rect.closePopup();
+      });
+    } else if (rectToken.value !== null && playerInventory.value == 0) {
       popupDiv.innerHTML = `
         <p>Token value: ${rectToken.value}</p>
         <button id="takeToken">Take Token</button>
