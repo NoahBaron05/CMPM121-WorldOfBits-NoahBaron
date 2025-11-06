@@ -33,3 +33,5 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 - [x] **#Step 11:** displays token in inventory when it is held
 - [x] **#Step 12:** if the player has a token, they can place it in a cell with an equal token value to double it
 - [x] **#Step 13:** the game detects when a player has sufficient tokens in hand
+- [ ] **#Step 14:** the cell shows its contents without needing to click on it
+- [x] **#Step 15:** randomize wether each cell has tokens or not

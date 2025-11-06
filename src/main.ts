@@ -27,7 +27,7 @@ const MAX_REACH_DISTANCE = 25;
 const winCount: number = 16;
 
 interface token {
-  value: number | null;
+  value: number;
 }
 
 const playerInventory: token = {
@@ -61,8 +61,11 @@ function spawnRectangle(i: number, j: number) {
     [origin.lat + (i + 1) * TILE_DEGREES, origin.lng + (j + 1) * TILE_DEGREES],
   ]);
 
+  const roll = luck([i / 2, j].toString());
+  const isToken = roll < RECTANGLE_SPAWN_PROBABILITY ? 1 : 0;
+
   const rectToken: token = {
-    value: 1,
+    value: isToken,
   };
 
   const rect = leaflet.rectangle(bounds);
@@ -83,19 +86,27 @@ function spawnRectangle(i: number, j: number) {
       popupDiv.querySelector("#closeButton")!.addEventListener("click", () => {
         rect.closePopup();
       });
-    } else if (rectToken.value !== null && playerInventory.value == 0) {
+    } else if (rectToken.value === 0 && playerInventory.value === 0) {
+      popupDiv.innerHTML = `
+        <p>This cell is empty.</p>
+        <button id="closeButton">Close</button>
+      `;
+      popupDiv.querySelector("#closeButton")!.addEventListener("click", () => {
+        rect.closePopup();
+      });
+    } else if (rectToken.value !== 0 && playerInventory.value == 0) {
       popupDiv.innerHTML = `
         <p>Token value: ${rectToken.value}</p>
         <button id="takeToken">Take Token</button>
       `;
       popupDiv.querySelector("#takeToken")!.addEventListener("click", () => {
         playerInventory.value = rectToken.value;
-        rectToken.value = null;
+        rectToken.value = 0;
         inventoryDiv.innerText = `Inventory: ${playerInventory.value}`;
         rect.closePopup();
         winCondition(playerInventory.value!, winCount);
       });
-    } else if (rectToken.value == null && playerInventory.value !== 0) {
+    } else if (rectToken.value == 0 && playerInventory.value !== 0) {
       popupDiv.innerHTML = `
         <p>Token value: ${rectToken.value}</p>
         <button id="dropToken">Drop token</button>
@@ -107,7 +118,7 @@ function spawnRectangle(i: number, j: number) {
         rect.closePopup();
       });
     } else if (
-      rectToken.value == playerInventory.value && rectToken.value !== null
+      rectToken.value == playerInventory.value && rectToken.value !== 0
     ) {
       popupDiv.innerHTML = `
         <p>Token value: ${rectToken.value}</p>
@@ -119,9 +130,7 @@ function spawnRectangle(i: number, j: number) {
         inventoryDiv.innerText = `Inventory: `;
         rect.closePopup();
       });
-    } else if (
-      rectToken.value != null && rectToken.value != playerInventory.value
-    ) {
+    } else if (rectToken.value != playerInventory.value) {
       popupDiv.innerHTML = `
         <p>Token value: ${rectToken.value}</p>
         <button id="closeButton">Close popup</button>
