@@ -23,6 +23,14 @@ const TILE_DEGREES = 1e-4;
 const NEIGHBORHOOD_SIZE_X = 22;
 const NEIGHBORHOOD_SIZE_Y = 6;
 
+interface token {
+  value: number | null;
+}
+
+const playerInventory: token = {
+  value: 0,
+};
+
 const map = leaflet.map(mapDiv, {
   center: SPAWN_POINT,
   zoom: GAMEPLAY_ZOOM_LEVEL,
@@ -50,8 +58,67 @@ function spawnRectangle(i: number, j: number) {
     [origin.lat + (i + 1) * TILE_DEGREES, origin.lng + (j + 1) * TILE_DEGREES],
   ]);
 
+  const rectToken: token = {
+    value: 1,
+  };
+
   const rect = leaflet.rectangle(bounds);
   rect.addTo(map);
+
+  rect.bindPopup(() => {
+    const popupDiv = document.createElement("div");
+
+    if (rectToken.value !== null && playerInventory.value == 0) {
+      popupDiv.innerHTML = `
+        <p>Token value: ${rectToken.value}</p>
+        <button id="takeToken">Take Token</button>
+      `;
+      popupDiv.querySelector("#takeToken")!.addEventListener("click", () => {
+        playerInventory.value = rectToken.value;
+        rectToken.value = null;
+        inventoryDiv.innerText = `Inventory: ${playerInventory.value}`;
+        rect.closePopup();
+      });
+    } else if (rectToken.value == null && playerInventory.value !== 0) {
+      popupDiv.innerHTML = `
+        <p>Token value: ${rectToken.value}</p>
+        <button id="dropToken">Drop token</button>
+      `;
+      popupDiv.querySelector("#dropToken")!.addEventListener("click", () => {
+        rectToken.value = playerInventory.value;
+        playerInventory.value = 0;
+        inventoryDiv.innerText = `Inventory: `;
+        rect.closePopup();
+      });
+    } else if (
+      rectToken.value == playerInventory.value && rectToken.value !== null
+    ) {
+      popupDiv.innerHTML = `
+        <p>Token value: ${rectToken.value}</p>
+        <button id="craftToken">Craft tokens</button>
+      `;
+      popupDiv.querySelector("#craftToken")!.addEventListener("click", () => {
+        rectToken.value! += playerInventory.value!;
+        playerInventory.value = 0;
+        inventoryDiv.innerText = `Inventory: `;
+        rect.closePopup();
+      });
+    } else if (
+      rectToken.value != null && rectToken.value != playerInventory.value
+    ) {
+      popupDiv.innerHTML = `
+        <p>Token value: ${rectToken.value}</p>
+        <button id="closeButton">Close popup</button>
+      `;
+      popupDiv.querySelector("#closeButton")!.addEventListener("click", () => {
+        rect.closePopup();
+      });
+    } else {
+      popupDiv.innerHTML = `Unexpected interaction`;
+    }
+
+    return popupDiv;
+  });
 }
 
 for (let i = -NEIGHBORHOOD_SIZE_Y; i < NEIGHBORHOOD_SIZE_Y; i++) {
@@ -61,3 +128,8 @@ for (let i = -NEIGHBORHOOD_SIZE_Y; i < NEIGHBORHOOD_SIZE_Y; i++) {
     }
   }
 }
+
+const inventoryDiv = document.createElement("div");
+inventoryDiv.id = "inventory";
+inventoryDiv.innerText = "\nInventory: ";
+document.body.append(inventoryDiv);
