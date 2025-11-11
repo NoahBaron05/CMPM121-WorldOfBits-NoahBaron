@@ -71,6 +71,7 @@ const playerLocation = leaflet.marker(SPAWN_POINT).addTo(map);
 const inventoryDiv = document.createElement("div");
 inventoryDiv.id = "inventory";
 inventoryDiv.innerText = "\nInventory: ";
+inventoryDiv.style.fontSize = "32px";
 document.body.append(inventoryDiv);
 
 function updateInventoryDisplay() {
