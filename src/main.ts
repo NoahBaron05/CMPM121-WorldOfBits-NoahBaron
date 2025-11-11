@@ -83,6 +83,7 @@ function winCondition(currentToken: number, winCount: number) {
     const winDiv = document.createElement("div");
     winDiv.id = "win";
     winDiv.innerText = "\nCongratulations! You won!";
+    winDiv.style.fontSize = "32px";
     document.body.append(winDiv);
   }
 }
