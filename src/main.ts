@@ -78,6 +78,23 @@ function updateInventoryDisplay() {
   inventoryDiv.innerText = `Inventory: ${playerInventory.value || ""}`;
 }
 
+const dpad = document.createElement("div");
+dpad.id = "dpad";
+dpad.innerHTML = `
+  <div class="dpad-cell"></div>
+  <button id="up" class="dpad-button">⬆</button>
+  <div class="dpad-cell"></div>
+
+  <button id="left" class="dpad-button">⬅</button>
+  <div class="dpad-center"></div>
+  <button id="right" class="dpad-button">➡</button>
+
+  <div class="dpad-cell"></div>
+  <button id="down" class="dpad-button">⬇</button>
+  <div class="dpad-cell"></div>
+`;
+document.body.append(dpad);
+
 function winCondition(currentToken: number, winCount: number) {
   if (currentToken == winCount) {
     const winDiv = document.createElement("div");
@@ -89,6 +106,8 @@ function winCondition(currentToken: number, winCount: number) {
 }
 
 // Cache Logic ---------------------------------------------------------------------------------------------------------------
+const rectUpdaters: (() => void)[] = [];
+
 function spawnCache(i: number, j: number) {
   const origin = SPAWN_POINT;
   const bounds = leaflet.latLngBounds([
@@ -145,6 +164,7 @@ function spawnCache(i: number, j: number) {
   }
 
   updateRectUI();
+  rectUpdaters.push(updateRectUI);
 
   // clicking a rectangle performs the action immediately (no popup)
   rect.on("click", () => {
@@ -174,10 +194,30 @@ function spawnCache(i: number, j: number) {
       playerInventory.value = 0;
       updateRectUI();
     } else {
-      // no-op for other cases (e.g., both empty, or mismatch where no action was defined)
+      // no option for other cases
       updateRectUI();
     }
   });
+}
+
+// Player movement -----------------------------------------------------------------------------------------------------------
+dpad.addEventListener("click", (event) => {
+  const btn = (event.target as HTMLElement).id;
+  if (btn === "up") movePlayer(0, 1);
+  else if (btn === "down") movePlayer(0, -1);
+  else if (btn === "left") movePlayer(-1, 0);
+  else if (btn === "right") movePlayer(1, 0);
+});
+
+function movePlayer(dx: number, dy: number) {
+  const current = playerLocation.getLatLng();
+  const newLat = current.lat + dy * TILE_DEGREES;
+  const newLng = current.lng + dx * TILE_DEGREES;
+  const newPos = leaflet.latLng(newLat, newLng);
+  playerLocation.setLatLng(newPos);
+  map.panTo(newPos);
+
+  rectUpdaters.forEach((u) => u());
 }
 
 // World Generation -------------------------------------------------------------------------------------------------------------

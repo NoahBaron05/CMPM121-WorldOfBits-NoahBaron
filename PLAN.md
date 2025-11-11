@@ -44,7 +44,7 @@ Key gameplay challenge: Can players craft an even higher value token by moving t
 
 ### Steps (b)
 
-- [ ] **#Step 16:** The interface offers some buttons to simulate local player movement
+- [x] **#Step 16:** The interface offers some buttons to simulate local player movement
 - [ ] **#Step 17:** As the player moves, cells continue to be visible all the way out to the edge of the map
 - [ ] **#Step 18:** The representation of grid cells uses an earth-spanning coordinate system anchored at Null Island (zero latitude, zero longitude).
 - [ ] **#Step 19:** the player can scroll the map and new cells will generate
