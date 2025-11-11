@@ -15,7 +15,7 @@ const NEIGHBORHOOD_SIZE_X = 22;
 const NEIGHBORHOOD_SIZE_Y = 6;
 const MAX_REACH_DISTANCE = 25;
 
-const WIN_COUNT: number = 16;
+const WIN_COUNT: number = 2;
 
 // Game State-----------------------------------------------------------------------------------------------------
 interface token {
@@ -88,12 +88,16 @@ function spawnCache(i: number, j: number) {
   const rect = leaflet.rectangle(bounds);
   rect.addTo(map);
 
-  const tooltip = leaflet.tooltip({
-    permanent: true,
-    direction: "center",
-    className: "tokenTooltip",
-  }).setContent(rectToken.value.toString());
-  rect.bindTooltip(tooltip);
+  if (rectToken.value !== 0) {
+    const tooltip = leaflet
+      .tooltip({
+        permanent: true,
+        direction: "center",
+        className: "token-tooltip",
+      })
+      .setContent(rectToken.value.toString());
+    rect.bindTooltip(tooltip);
+  }
 
   rect.bindPopup(() => {
     const rectangleCenter = bounds.getCenter();
@@ -102,7 +106,6 @@ function spawnCache(i: number, j: number) {
 
     return createPopupContent({
       rectToken,
-      tooltip,
       inventoryDiv,
       rect,
       distance,
@@ -111,9 +114,8 @@ function spawnCache(i: number, j: number) {
 }
 
 function createPopupContent(
-  { rectToken, tooltip, inventoryDiv, rect, distance }: {
+  { rectToken, inventoryDiv, rect, distance }: {
     rectToken: token;
-    tooltip: leaflet.Tooltip;
     inventoryDiv: HTMLElement;
     rect: leaflet.Rectangle;
     distance: number;
@@ -122,8 +124,29 @@ function createPopupContent(
   const popupDiv = document.createElement("div");
 
   const close = () => rect.closePopup();
+
+  let tooltip: leaflet.Tooltip | null =
+    (rect.getTooltip && rect.getTooltip() as leaflet.Tooltip) || null;
+
   const update = () => {
-    tooltip.setContent(rectToken.value.toString());
+    if (rectToken.value !== 0) {
+      if (tooltip) {
+        tooltip.setContent(rectToken.value.toString());
+      } else {
+        tooltip = leaflet.tooltip({
+          permanent: true,
+          direction: "center",
+          className: "token-tooltip",
+        }).setContent(rectToken.value.toString());
+        rect.bindTooltip(tooltip);
+      }
+    } else {
+      if (tooltip) {
+        rect.unbindTooltip();
+        tooltip = null;
+      }
+    }
+
     inventoryDiv.innerText = `Inventory: ${playerInventory.value || ""}`;
   };
 
