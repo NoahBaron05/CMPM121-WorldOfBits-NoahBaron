@@ -13,7 +13,7 @@ const GAMEPLAY_ZOOM_LEVEL = 19;
 const TILE_DEGREES = 1e-4;
 const MAX_REACH_DISTANCE = 25;
 
-const WIN_COUNT: number = 2;
+const WIN_COUNT: number = 16;
 
 const reachableStyle = {
   color: "#3388ff",

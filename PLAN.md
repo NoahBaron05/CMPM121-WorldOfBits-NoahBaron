@@ -49,4 +49,4 @@ Key gameplay challenge: Can players craft an even higher value token by moving t
 - [x] **#Step 18:** The representation of grid cells uses an earth-spanning coordinate system anchored at Null Island (zero latitude, zero longitude).
 - [x] **#Step 19:** the player can scroll the map and new cells will generate
 - [x] **#Step 20:** Cells should appear to be memoryless in the sense that they forget their state when they are no longer visible on the screen
-- [ ] **#Step 21:** Raise victory threshold
+- [x] **#Step 21:** Raise victory threshold
