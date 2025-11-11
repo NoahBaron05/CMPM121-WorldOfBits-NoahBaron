@@ -45,20 +45,8 @@ Key gameplay challenge: Can players craft an even higher value token by moving t
 ### Steps (b)
 
 - [x] **#Step 16:** The interface offers some buttons to simulate local player movement
-- [ ] **#Step 17:** As the player moves, cells continue to be visible all the way out to the edge of the map
-- [ ] **#Step 18:** The representation of grid cells uses an earth-spanning coordinate system anchored at Null Island (zero latitude, zero longitude).
-- [ ] **#Step 19:** the player can scroll the map and new cells will generate
+- [x] **#Step 17:** As the player moves, cells continue to be visible all the way out to the edge of the map
+- [x] **#Step 18:** The representation of grid cells uses an earth-spanning coordinate system anchored at Null Island (zero latitude, zero longitude).
+- [x] **#Step 19:** the player can scroll the map and new cells will generate
 - [ ] **#Step 20:** Cells should appear to be memoryless in the sense that they forget their state when they are no longer visible on the screen
 - [ ] **#Step 21:** Raise victory threshold
-- [ ] **#Step 22:** text
-- [ ] **#Step 23:** text
-- [ ] **#Step 24:** text
-- [ ] **#Step 25:** text
-- [ ] **#Step 26:** text
-- [ ] **#Step 27:** text
-- [ ] **#Step 28:** text
-- [ ] **#Step 29:** text
-- [ ] **#Step 30** text
-- [ ] **#Step 31:** text
-- [ ] **#Step 32:** text
-- [ ] **#Step 33:** text

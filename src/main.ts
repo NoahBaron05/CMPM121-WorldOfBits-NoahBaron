@@ -38,6 +38,8 @@ const playerInventory: token = {
   value: 0,
 };
 
+type Cell = { i: number; j: number };
+
 // Map Setup---------------------------------------------------------------------------------------------------------------
 function createMap(): leaflet.Map {
   const mapDiv = document.createElement("div");
@@ -105,15 +107,29 @@ function winCondition(currentToken: number, winCount: number) {
   }
 }
 
+function cellKey(c: Cell) {
+  return `${c.i},${c.j}`;
+}
+
+// Convers a cell id to Leaflet LatLngBounds
+function cellToBounds(c: Cell): leaflet.LatLngBounds {
+  const topLeftLat = c.i * TILE_DEGREES;
+  const topLeftLng = c.j * TILE_DEGREES;
+  const bottomRightLat = (c.i + 1) * TILE_DEGREES;
+  const bottomRightLng = (c.j + 1) * TILE_DEGREES;
+  return leaflet.latLngBounds(
+    leaflet.latLng(topLeftLat, topLeftLng),
+    leaflet.latLng(bottomRightLat, bottomRightLng),
+  );
+}
+
+const spawnedCells = new Set<string>();
+
 // Cache Logic ---------------------------------------------------------------------------------------------------------------
 const rectUpdaters: (() => void)[] = [];
 
 function spawnCache(i: number, j: number) {
-  const origin = SPAWN_POINT;
-  const bounds = leaflet.latLngBounds([
-    [origin.lat + i * TILE_DEGREES, origin.lng + j * TILE_DEGREES],
-    [origin.lat + (i + 1) * TILE_DEGREES, origin.lng + (j + 1) * TILE_DEGREES],
-  ]);
+  const bounds = cellToBounds({ i, j });
 
   const roll = luck([i / 2, j].toString());
   const isToken = roll < RECTANGLE_SPAWN_PROBABILITY ? 1 : 0;
@@ -200,6 +216,40 @@ function spawnCache(i: number, j: number) {
   });
 }
 
+// Spawn cells in when they are inside the screen
+function ensureCellsInView() {
+  const bounds = map.getBounds();
+  const southWest = bounds.getSouthWest();
+  const northEast = bounds.getNorthEast();
+
+  const minI = Math.floor(southWest.lat / TILE_DEGREES) - 1 -
+    NEIGHBORHOOD_SIZE_Y;
+  const maxI = Math.floor(northEast.lat / TILE_DEGREES) + 1 +
+    NEIGHBORHOOD_SIZE_Y;
+  const minJ = Math.floor(southWest.lng / TILE_DEGREES) - 1 -
+    NEIGHBORHOOD_SIZE_X;
+  const maxJ = Math.floor(northEast.lng / TILE_DEGREES) + 1 +
+    NEIGHBORHOOD_SIZE_X;
+
+  for (let i = minI; i <= maxI; i++) {
+    for (let j = minJ; j <= maxJ; j++) {
+      const key = cellKey({ i, j });
+      if (!spawnedCells.has(key)) {
+        spawnedCells.add(key);
+        spawnCache(i, j);
+      }
+    }
+  }
+}
+
+map.whenReady(() => {
+  ensureCellsInView();
+});
+
+map.on("moveend", () => {
+  ensureCellsInView();
+});
+
 // Player movement -----------------------------------------------------------------------------------------------------------
 dpad.addEventListener("click", (event) => {
   const btn = (event.target as HTMLElement).id;
@@ -222,11 +272,7 @@ function movePlayer(dx: number, dy: number) {
 
 // World Generation -------------------------------------------------------------------------------------------------------------
 function generateWorld() {
-  for (let i = -NEIGHBORHOOD_SIZE_Y; i < NEIGHBORHOOD_SIZE_Y; i++) {
-    for (let j = -NEIGHBORHOOD_SIZE_X; j < NEIGHBORHOOD_SIZE_X; j++) {
-      spawnCache(i, j);
-    }
-  }
+  ensureCellsInView();
 }
 
 generateWorld();
