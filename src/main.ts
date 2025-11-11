@@ -73,6 +73,10 @@ inventoryDiv.id = "inventory";
 inventoryDiv.innerText = "\nInventory: ";
 document.body.append(inventoryDiv);
 
+function updateInventoryDisplay() {
+  inventoryDiv.innerText = `Inventory: ${playerInventory.value || ""}`;
+}
+
 function winCondition(currentToken: number, winCount: number) {
   if (currentToken == winCount) {
     const winDiv = document.createElement("div");
@@ -100,64 +104,32 @@ function spawnCache(i: number, j: number) {
   const rect = leaflet.rectangle(bounds);
   rect.addTo(map);
 
+  let tooltip: leaflet.Tooltip | null = null;
+
   const rectangleCenter = bounds.getCenter();
-  const distance = map.distance(rectangleCenter, playerLocation.getLatLng());
-  if (distance > MAX_REACH_DISTANCE) {
-    rect.setStyle(unreachableStyle);
-  } else {
-    rect.setStyle(reachableStyle);
-  }
 
-  if (rectToken.value !== 0) {
-    const tooltip = leaflet
-      .tooltip({
-        permanent: true,
-        direction: "center",
-        className: "token-tooltip",
-      })
-      .setContent(rectToken.value.toString());
-    rect.bindTooltip(tooltip);
-  }
+  function updateRectUI() {
+    const distance = map.distance(rectangleCenter, playerLocation.getLatLng());
 
-  rect.bindPopup(() => {
-    const rectangleCenter = bounds.getCenter();
-    const playerPosition = playerLocation.getLatLng();
-    const distance = map.distance(rectangleCenter, playerPosition);
+    // style based on reach
+    if (distance > MAX_REACH_DISTANCE) {
+      rect.setStyle(unreachableStyle);
+    } else {
+      rect.setStyle(reachableStyle);
+    }
 
-    return createPopupContent({
-      rectToken,
-      inventoryDiv,
-      rect,
-      distance,
-    });
-  });
-}
-
-function createPopupContent(
-  { rectToken, inventoryDiv, rect, distance }: {
-    rectToken: token;
-    inventoryDiv: HTMLElement;
-    rect: leaflet.Rectangle;
-    distance: number;
-  },
-) {
-  const popupDiv = document.createElement("div");
-
-  const close = () => rect.closePopup();
-
-  let tooltip: leaflet.Tooltip | null =
-    (rect.getTooltip && rect.getTooltip() as leaflet.Tooltip) || null;
-
-  const update = () => {
+    // tooltip reflect token value: only show for non-zero tokens
     if (rectToken.value !== 0) {
       if (tooltip) {
         tooltip.setContent(rectToken.value.toString());
       } else {
-        tooltip = leaflet.tooltip({
-          permanent: true,
-          direction: "center",
-          className: "token-tooltip",
-        }).setContent(rectToken.value.toString());
+        tooltip = leaflet
+          .tooltip({
+            permanent: true,
+            direction: "center",
+            className: "token-tooltip",
+          })
+          .setContent(rectToken.value.toString());
         rect.bindTooltip(tooltip);
       }
     } else {
@@ -167,65 +139,43 @@ function createPopupContent(
       }
     }
 
-    if (distance > MAX_REACH_DISTANCE) {
-      rect.setStyle(unreachableStyle);
-    } else {
-      rect.setStyle(reachableStyle);
-    }
-
-    inventoryDiv.innerText = `Inventory: ${playerInventory.value || ""}`;
-  };
-
-  if (distance > MAX_REACH_DISTANCE) {
-    popupDiv.innerHTML = `<p>Too far away</p><button id="close">Close</button>`;
-    popupDiv.querySelector("#close")!.addEventListener("click", close);
-    return popupDiv;
+    updateInventoryDisplay();
   }
 
-  const hasPlayerToken = playerInventory.value !== 0;
-  const hasRectangleToken = rectToken.value !== 0;
+  updateRectUI();
 
-  if (!hasRectangleToken && !hasPlayerToken) {
-    popupDiv.innerHTML =
-      `<p>This cell is empty.</p><button id="close">Close</button>`;
-    popupDiv.querySelector("#close")!.addEventListener("click", close);
-  } else if (hasRectangleToken && !hasPlayerToken) {
-    popupDiv.innerHTML =
-      `<p>Token value: ${rectToken.value}</p><button id="take">Take Token</button>`;
-    popupDiv.querySelector("#take")!.addEventListener("click", () => {
+  // clicking a rectangle performs the action immediately (no popup)
+  rect.on("click", () => {
+    const distance = map.distance(rectangleCenter, playerLocation.getLatLng());
+
+    // ignore clicks out of reach
+    if (distance > MAX_REACH_DISTANCE) return;
+
+    const hasPlayerToken = playerInventory.value !== 0;
+    const hasRectangleToken = rectToken.value !== 0;
+
+    // Actions
+    if (hasRectangleToken && !hasPlayerToken) {
+      // take token
       playerInventory.value = rectToken.value;
       rectToken.value = 0;
-      update();
-      close();
+      updateRectUI();
       winCondition(playerInventory.value!, WIN_COUNT);
-    });
-  } else if (!hasRectangleToken && hasPlayerToken) {
-    popupDiv.innerHTML =
-      `<p>Token value: ${rectToken.value}</p><button id="drop">Drop token</button>`;
-    popupDiv.querySelector("#drop")!.addEventListener("click", () => {
+    } else if (!hasRectangleToken && hasPlayerToken) {
+      // drop token
       rectToken.value = playerInventory.value;
       playerInventory.value = 0;
-      update();
-      close();
-    });
-  } else if (rectToken.value == playerInventory.value && hasRectangleToken) {
-    popupDiv.innerHTML =
-      `<p>Token value: ${rectToken.value}</p><button id="craft">Craft tokens</button>`;
-    popupDiv.querySelector("#craft")!.addEventListener("click", () => {
+      updateRectUI();
+    } else if (rectToken.value == playerInventory.value && hasRectangleToken) {
+      // craft tokens (merge)
       rectToken.value! += playerInventory.value;
       playerInventory.value = 0;
-      update();
-      close();
-    });
-  } else if (rectToken.value != playerInventory.value) {
-    popupDiv.innerHTML =
-      `<p>Token value: ${rectToken.value}</p><button id="close">Close popup</button>`;
-    popupDiv.querySelector("#closeButton")!.addEventListener("click", close);
-  } else {
-    popupDiv.innerHTML = `Unexpected interaction`;
-  }
-
-  return popupDiv;
+      updateRectUI();
+    } else {
+      // no-op for other cases (e.g., both empty, or mismatch where no action was defined)
+      updateRectUI();
+    }
+  });
 }
 
 // World Generation -------------------------------------------------------------------------------------------------------------
