@@ -17,6 +17,18 @@ const MAX_REACH_DISTANCE = 25;
 
 const WIN_COUNT: number = 2;
 
+const reachableStyle = {
+  color: "#3388ff",
+  fillColor: "#3388ff",
+  fillOpacity: 0.2,
+};
+
+const unreachableStyle = {
+  color: "#999999",
+  fillColor: "#999999",
+  fillOpacity: 0.2,
+};
+
 // Game State-----------------------------------------------------------------------------------------------------
 interface token {
   value: number;
@@ -88,6 +100,14 @@ function spawnCache(i: number, j: number) {
   const rect = leaflet.rectangle(bounds);
   rect.addTo(map);
 
+  const rectangleCenter = bounds.getCenter();
+  const distance = map.distance(rectangleCenter, playerLocation.getLatLng());
+  if (distance > MAX_REACH_DISTANCE) {
+    rect.setStyle(unreachableStyle);
+  } else {
+    rect.setStyle(reachableStyle);
+  }
+
   if (rectToken.value !== 0) {
     const tooltip = leaflet
       .tooltip({
@@ -145,6 +165,12 @@ function createPopupContent(
         rect.unbindTooltip();
         tooltip = null;
       }
+    }
+
+    if (distance > MAX_REACH_DISTANCE) {
+      rect.setStyle(unreachableStyle);
+    } else {
+      rect.setStyle(reachableStyle);
     }
 
     inventoryDiv.innerText = `Inventory: ${playerInventory.value || ""}`;
