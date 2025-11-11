@@ -11,8 +11,6 @@ const RECTANGLE_SPAWN_PROBABILITY = 0.2;
 
 const GAMEPLAY_ZOOM_LEVEL = 19;
 const TILE_DEGREES = 1e-4;
-const NEIGHBORHOOD_SIZE_X = 22;
-const NEIGHBORHOOD_SIZE_Y = 6;
 const MAX_REACH_DISTANCE = 25;
 
 const WIN_COUNT: number = 2;
@@ -39,6 +37,16 @@ const playerInventory: token = {
 };
 
 type Cell = { i: number; j: number };
+
+interface ActiveCell {
+  cell: Cell;
+  rect: leaflet.Rectangle;
+  // rectToken only exists while the cell is active
+  rectToken: token;
+  update: () => void;
+}
+
+const activeCells = new Map<string, ActiveCell>();
 
 // Map Setup---------------------------------------------------------------------------------------------------------------
 function createMap(): leaflet.Map {
@@ -123,26 +131,24 @@ function cellToBounds(c: Cell): leaflet.LatLngBounds {
   );
 }
 
-const spawnedCells = new Set<string>();
-
 // Cache Logic ---------------------------------------------------------------------------------------------------------------
-const rectUpdaters: (() => void)[] = [];
+function getInitialTokenValue(c: Cell): number {
+  const roll = luck(cellKey(c));
+  return roll < RECTANGLE_SPAWN_PROBABILITY ? 1 : 0;
+}
 
 function spawnCache(i: number, j: number) {
-  const bounds = cellToBounds({ i, j });
+  const cell: Cell = { i, j };
+  const key = cellKey(cell);
+  const bounds = cellToBounds(cell);
 
-  const roll = luck([i / 2, j].toString());
-  const isToken = roll < RECTANGLE_SPAWN_PROBABILITY ? 1 : 0;
-
-  const rectToken: token = {
-    value: isToken,
-  };
+  // token exists only while this cell is active
+  const rectToken: token = { value: getInitialTokenValue(cell) };
 
   const rect = leaflet.rectangle(bounds);
   rect.addTo(map);
 
   let tooltip: leaflet.Tooltip | null = null;
-
   const rectangleCenter = bounds.getCenter();
 
   function updateRectUI() {
@@ -179,67 +185,73 @@ function spawnCache(i: number, j: number) {
     updateInventoryDisplay();
   }
 
-  updateRectUI();
-  rectUpdaters.push(updateRectUI);
-
-  // clicking a rectangle performs the action immediately (no popup)
-  rect.on("click", () => {
+  // click behavior (mutations are in-memory only while active)
+  const onClick = () => {
     const distance = map.distance(rectangleCenter, playerLocation.getLatLng());
-
-    // ignore clicks out of reach
     if (distance > MAX_REACH_DISTANCE) return;
 
     const hasPlayerToken = playerInventory.value !== 0;
     const hasRectangleToken = rectToken.value !== 0;
 
-    // Actions
     if (hasRectangleToken && !hasPlayerToken) {
-      // take token
       playerInventory.value = rectToken.value;
       rectToken.value = 0;
       updateRectUI();
       winCondition(playerInventory.value!, WIN_COUNT);
     } else if (!hasRectangleToken && hasPlayerToken) {
-      // drop token
       rectToken.value = playerInventory.value;
       playerInventory.value = 0;
       updateRectUI();
     } else if (rectToken.value == playerInventory.value && hasRectangleToken) {
-      // craft tokens (merge)
       rectToken.value! += playerInventory.value;
       playerInventory.value = 0;
       updateRectUI();
     } else {
-      // no option for other cases
       updateRectUI();
     }
-  });
+  };
+
+  rect.on("click", onClick);
+
+  const active: ActiveCell = { cell, rect, rectToken, update: updateRectUI };
+  activeCells.set(key, active);
+
+  updateRectUI();
 }
 
-// Spawn cells in when they are inside the screen
+// Spawn cells in when they are inside the screen (and fully clean them up when they leave)
 function ensureCellsInView() {
   const bounds = map.getBounds();
   const southWest = bounds.getSouthWest();
   const northEast = bounds.getNorthEast();
 
-  const minI = Math.floor(southWest.lat / TILE_DEGREES) - 1 -
-    NEIGHBORHOOD_SIZE_Y;
-  const maxI = Math.floor(northEast.lat / TILE_DEGREES) + 1 +
-    NEIGHBORHOOD_SIZE_Y;
-  const minJ = Math.floor(southWest.lng / TILE_DEGREES) - 1 -
-    NEIGHBORHOOD_SIZE_X;
-  const maxJ = Math.floor(northEast.lng / TILE_DEGREES) + 1 +
-    NEIGHBORHOOD_SIZE_X;
+  const minI = Math.floor(southWest.lat / TILE_DEGREES) - 1;
+  const maxI = Math.floor(northEast.lat / TILE_DEGREES) + 1;
+  const minJ = Math.floor(southWest.lng / TILE_DEGREES) - 1;
+  const maxJ = Math.floor(northEast.lng / TILE_DEGREES) + 1;
 
+  const desired = new Set<string>();
   for (let i = minI; i <= maxI; i++) {
     for (let j = minJ; j <= maxJ; j++) {
-      const key = cellKey({ i, j });
-      if (!spawnedCells.has(key)) {
-        spawnedCells.add(key);
+      desired.add(cellKey({ i, j }));
+      if (!activeCells.has(cellKey({ i, j }))) {
         spawnCache(i, j);
       }
     }
   }
+
+  // remove cells that are no longer desired and fully clean up
+  for (const [key, active] of activeCells) {
+    if (!desired.has(key)) {
+      active.rect.off();
+      active.rect.unbindTooltip();
+      active.rect.remove();
+      activeCells.delete(key);
+    }
+  }
+
+  // refresh remaining active cells
+  for (const active of activeCells.values()) active.update();
 }
 
 map.whenReady(() => {
@@ -266,8 +278,6 @@ function movePlayer(dx: number, dy: number) {
   const newPos = leaflet.latLng(newLat, newLng);
   playerLocation.setLatLng(newPos);
   map.panTo(newPos);
-
-  rectUpdaters.forEach((u) => u());
 }
 
 // World Generation -------------------------------------------------------------------------------------------------------------
