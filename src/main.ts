@@ -206,9 +206,7 @@ function createPopupContent(
 function generateWorld() {
   for (let i = -NEIGHBORHOOD_SIZE_Y; i < NEIGHBORHOOD_SIZE_Y; i++) {
     for (let j = -NEIGHBORHOOD_SIZE_X; j < NEIGHBORHOOD_SIZE_X; j++) {
-      if (luck([i, j].toString()) < RECTANGLE_SPAWN_PROBABILITY) {
-        spawnCache(i, j);
-      }
+      spawnCache(i, j);
     }
   }
 }
