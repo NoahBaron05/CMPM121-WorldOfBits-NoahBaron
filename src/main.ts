@@ -183,6 +183,9 @@ function destroyActiveCell(key: string) {
 // Cache Logic ----------------------------------------------------------------------------------------------------------------------------
 function getInitialTokenValue(cell: Cell): number {
   const key = cellKey(cell);
+  const saved = mementoManager.restore(key);
+  if (saved != null) return saved;
+
   const roll = luck(key);
   return roll < CONST.RECTANGLE_SPAWN_PROBABILITY ? 1 : 0;
 }
