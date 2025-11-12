@@ -39,6 +39,7 @@ interface ActiveCell {
 
 const activeCells = new Map<string, ActiveCell>();
 
+// Flyweight pattern implementation--------------------------------------------------------------------------------
 class CellFlyweight {
   constructor(public readonly bounds: leaflet.LatLngBounds) {}
 
@@ -61,6 +62,30 @@ class FlyweightFactory {
 }
 
 const flyweightFactory = new FlyweightFactory();
+
+// Memento Pattern implementation-------------------------------------------------------------------------------
+interface Memento {
+  key: string;
+  token: number;
+}
+
+class MementoManager {
+  private mementos = new Map<string, Memento>();
+
+  save(cell: Cell, token: number) {
+    this.mementos.set(cellKey(cell), { key: cellKey(cell), token });
+  }
+
+  restore(key: string): number | null {
+    return this.mementos.get(key)?.token || null;
+  }
+
+  getAll(): Memento[] {
+    return Array.from(this.mementos.values());
+  }
+}
+
+const mementoManager = new MementoManager();
 
 // Map Setup---------------------------------------------------------------------------------------------------------------
 const map = createMap();
@@ -156,8 +181,9 @@ function destroyActiveCell(key: string) {
 }
 
 // Cache Logic ----------------------------------------------------------------------------------------------------------------------------
-function getInitialTokenValue(c: Cell): number {
-  const roll = luck(cellKey(c));
+function getInitialTokenValue(cell: Cell): number {
+  const key = cellKey(cell);
+  const roll = luck(key);
   return roll < CONST.RECTANGLE_SPAWN_PROBABILITY ? 1 : 0;
 }
 
@@ -215,6 +241,8 @@ function spawnCache(cell: Cell) {
     const hasPlayerToken = playerInventory.value !== 0;
     const hasRectangleToken = rectToken.value !== 0;
 
+    const before = rectToken.value;
+
     if (hasRectangleToken && !hasPlayerToken) {
       playerInventory.value = rectToken.value;
       rectToken.value = 0;
@@ -226,6 +254,10 @@ function spawnCache(cell: Cell) {
       rectToken.value += playerInventory.value;
       playerInventory.value = 0;
       winCondition(rectToken.value, CONST.WIN_COUNT);
+    }
+
+    if (before !== rectToken.value) {
+      mementoManager.save(cell, rectToken.value);
     }
 
     updateRectUI();
