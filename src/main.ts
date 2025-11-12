@@ -6,26 +6,18 @@ import luck from "./_luck.ts";
 import "./style.css";
 
 // Constants-------------------------------------------------------------------------------------------------
-const SPAWN_POINT = leaflet.latLng(57.476538, -4.225123);
-const RECTANGLE_SPAWN_PROBABILITY = 0.2;
-
-const GAMEPLAY_ZOOM_LEVEL = 19;
-const TILE_DEGREES = 1e-4;
-const MAX_REACH_DISTANCE = 25;
-
-const WIN_COUNT: number = 16;
-
-const reachableStyle = {
-  color: "#3388ff",
-  fillColor: "#3388ff",
-  fillOpacity: 0.2,
-};
-
-const unreachableStyle = {
-  color: "#999999",
-  fillColor: "#999999",
-  fillOpacity: 0.2,
-};
+const CONST = {
+  SPAWN_POINT: leaflet.latLng(57.476538, -4.225123),
+  RECTANGLE_SPAWN_PROBABILITY: 0.2,
+  GAMEPLAY_ZOOM_LEVEL: 19,
+  TILE_DEGREES: 1e-4,
+  MAX_REACH_DISTANCE: 28,
+  WIN_COUNT: 16,
+  STYLE: {
+    REACHABLE: { color: "#3388ff", fillColor: "#3388ff", fillOpacity: 0.2 },
+    UNREACHABLE: { color: "#999999", fillColor: "#999999", fillOpacity: 0.2 },
+  },
+} as const;
 
 // Game State-----------------------------------------------------------------------------------------------------
 interface token {
@@ -41,7 +33,6 @@ type Cell = { i: number; j: number };
 interface ActiveCell {
   cell: Cell;
   rect: leaflet.Rectangle;
-  // rectToken only exists while the cell is active
   rectToken: token;
   update: () => void;
 }
@@ -49,33 +40,8 @@ interface ActiveCell {
 const activeCells = new Map<string, ActiveCell>();
 
 // Map Setup---------------------------------------------------------------------------------------------------------------
-function createMap(): leaflet.Map {
-  const mapDiv = document.createElement("div");
-  mapDiv.id = "map";
-  document.body.append(mapDiv);
-
-  const map = leaflet.map(mapDiv, {
-    center: SPAWN_POINT,
-    zoom: GAMEPLAY_ZOOM_LEVEL,
-    minZoom: GAMEPLAY_ZOOM_LEVEL,
-    maxZoom: GAMEPLAY_ZOOM_LEVEL,
-    zoomControl: false,
-    scrollWheelZoom: false,
-  });
-
-  leaflet
-    .tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: GAMEPLAY_ZOOM_LEVEL,
-      attribution:
-        '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    })
-    .addTo(map);
-
-  return map;
-}
-
 const map = createMap();
-const playerLocation = leaflet.marker(SPAWN_POINT).addTo(map);
+const playerLocation = leaflet.marker(CONST.SPAWN_POINT).addTo(map);
 
 // UI Elements -------------------------------------------------------------------------------------------------------------------
 const inventoryDiv = document.createElement("div");
@@ -83,10 +49,6 @@ inventoryDiv.id = "inventory";
 inventoryDiv.innerText = "\nInventory: ";
 inventoryDiv.style.fontSize = "32px";
 document.body.append(inventoryDiv);
-
-function updateInventoryDisplay() {
-  inventoryDiv.innerText = `Inventory: ${playerInventory.value || ""}`;
-}
 
 const dpad = document.createElement("div");
 dpad.id = "dpad";
@@ -105,6 +67,36 @@ dpad.innerHTML = `
 `;
 document.body.append(dpad);
 
+// Functions ---------------------------------------------------------------------------------------------------------
+function createMap(): leaflet.Map {
+  const mapDiv = document.createElement("div");
+  mapDiv.id = "map";
+  document.body.append(mapDiv);
+
+  const map = leaflet.map(mapDiv, {
+    center: CONST.SPAWN_POINT,
+    zoom: CONST.GAMEPLAY_ZOOM_LEVEL,
+    minZoom: CONST.GAMEPLAY_ZOOM_LEVEL,
+    maxZoom: CONST.GAMEPLAY_ZOOM_LEVEL,
+    zoomControl: false,
+    scrollWheelZoom: false,
+  });
+
+  leaflet
+    .tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: CONST.GAMEPLAY_ZOOM_LEVEL,
+      attribution:
+        '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    })
+    .addTo(map);
+
+  return map;
+}
+
+function updateInventoryDisplay() {
+  inventoryDiv.innerText = `Inventory: ${playerInventory.value || ""}`;
+}
+
 function winCondition(currentToken: number, winCount: number) {
   if (currentToken == winCount) {
     const winDiv = document.createElement("div");
@@ -119,46 +111,53 @@ function cellKey(c: Cell) {
   return `${c.i},${c.j}`;
 }
 
-// Convers a cell id to Leaflet LatLngBounds
+// Converts a cell id to Leaflet LatLngBounds
 function cellToBounds(c: Cell): leaflet.LatLngBounds {
-  const topLeftLat = c.i * TILE_DEGREES;
-  const topLeftLng = c.j * TILE_DEGREES;
-  const bottomRightLat = (c.i + 1) * TILE_DEGREES;
-  const bottomRightLng = (c.j + 1) * TILE_DEGREES;
+  const topLeftLat = c.i * CONST.TILE_DEGREES;
+  const topLeftLng = c.j * CONST.TILE_DEGREES;
+  const bottomRightLat = (c.i + 1) * CONST.TILE_DEGREES;
+  const bottomRightLng = (c.j + 1) * CONST.TILE_DEGREES;
   return leaflet.latLngBounds(
     leaflet.latLng(topLeftLat, topLeftLng),
     leaflet.latLng(bottomRightLat, bottomRightLng),
   );
 }
 
-// Cache Logic ---------------------------------------------------------------------------------------------------------------
-function getInitialTokenValue(c: Cell): number {
-  const roll = luck(cellKey(c));
-  return roll < RECTANGLE_SPAWN_PROBABILITY ? 1 : 0;
+function destroyActiveCell(key: string) {
+  const active = activeCells.get(key);
+  if (!active) return;
+  active.rect.off();
+  active.rect.unbindTooltip();
+  active.rect.remove();
+  activeCells.delete(key);
 }
 
-function spawnCache(i: number, j: number) {
-  const cell: Cell = { i, j };
-  const key = cellKey(cell);
-  const bounds = cellToBounds(cell);
+// Cache Logic ----------------------------------------------------------------------------------------------------------------------------
+function getInitialTokenValue(c: Cell): number {
+  const roll = luck(cellKey(c));
+  return roll < CONST.RECTANGLE_SPAWN_PROBABILITY ? 1 : 0;
+}
 
-  // token exists only while this cell is active
+function spawnCache(cell: Cell) {
+  const key = cellKey(cell);
+  if (activeCells.has(key)) return;
+
+  const bounds = cellToBounds(cell);
   const rectToken: token = { value: getInitialTokenValue(cell) };
 
-  const rect = leaflet.rectangle(bounds);
-  rect.addTo(map);
+  const rect = leaflet.rectangle(bounds).addTo(map);
 
   let tooltip: leaflet.Tooltip | null = null;
-  const rectangleCenter = bounds.getCenter();
+  const center = bounds.getCenter();
 
   function updateRectUI() {
-    const distance = map.distance(rectangleCenter, playerLocation.getLatLng());
+    const distance = map.distance(center, playerLocation.getLatLng());
 
     // style based on reach
-    if (distance > MAX_REACH_DISTANCE) {
-      rect.setStyle(unreachableStyle);
+    if (distance > CONST.MAX_REACH_DISTANCE) {
+      rect.setStyle(CONST.STYLE.UNREACHABLE);
     } else {
-      rect.setStyle(reachableStyle);
+      rect.setStyle(CONST.STYLE.REACHABLE);
     }
 
     // tooltip reflect token value: only show for non-zero tokens
@@ -187,8 +186,8 @@ function spawnCache(i: number, j: number) {
 
   // click behavior (mutations are in-memory only while active)
   const onClick = () => {
-    const distance = map.distance(rectangleCenter, playerLocation.getLatLng());
-    if (distance > MAX_REACH_DISTANCE) return;
+    const distance = map.distance(center, playerLocation.getLatLng());
+    if (distance > CONST.MAX_REACH_DISTANCE) return;
 
     const hasPlayerToken = playerInventory.value !== 0;
     const hasRectangleToken = rectToken.value !== 0;
@@ -196,26 +195,21 @@ function spawnCache(i: number, j: number) {
     if (hasRectangleToken && !hasPlayerToken) {
       playerInventory.value = rectToken.value;
       rectToken.value = 0;
-      updateRectUI();
-      winCondition(playerInventory.value!, WIN_COUNT);
+      winCondition(playerInventory.value!, CONST.WIN_COUNT);
     } else if (!hasRectangleToken && hasPlayerToken) {
       rectToken.value = playerInventory.value;
       playerInventory.value = 0;
-      updateRectUI();
     } else if (rectToken.value == playerInventory.value && hasRectangleToken) {
       rectToken.value! += playerInventory.value;
       playerInventory.value = 0;
-      updateRectUI();
-    } else {
-      updateRectUI();
     }
+
+    updateRectUI();
   };
 
   rect.on("click", onClick);
-
   const active: ActiveCell = { cell, rect, rectToken, update: updateRectUI };
   activeCells.set(key, active);
-
   updateRectUI();
 }
 
@@ -225,35 +219,46 @@ function ensureCellsInView() {
   const southWest = bounds.getSouthWest();
   const northEast = bounds.getNorthEast();
 
-  const minI = Math.floor(southWest.lat / TILE_DEGREES) - 1;
-  const maxI = Math.floor(northEast.lat / TILE_DEGREES) + 1;
-  const minJ = Math.floor(southWest.lng / TILE_DEGREES) - 1;
-  const maxJ = Math.floor(northEast.lng / TILE_DEGREES) + 1;
+  const minI = Math.floor(southWest.lat / CONST.TILE_DEGREES) - 1;
+  const maxI = Math.floor(northEast.lat / CONST.TILE_DEGREES) + 1;
+  const minJ = Math.floor(southWest.lng / CONST.TILE_DEGREES) - 1;
+  const maxJ = Math.floor(northEast.lng / CONST.TILE_DEGREES) + 1;
 
   const desired = new Set<string>();
   for (let i = minI; i <= maxI; i++) {
     for (let j = minJ; j <= maxJ; j++) {
+      const cell = { i, j } as Cell;
+      const key = cellKey(cell);
       desired.add(cellKey({ i, j }));
-      if (!activeCells.has(cellKey({ i, j }))) {
-        spawnCache(i, j);
+      if (!activeCells.has(key)) {
+        spawnCache(cell);
       }
     }
   }
 
-  // remove cells that are no longer desired and fully clean up
-  for (const [key, active] of activeCells) {
-    if (!desired.has(key)) {
-      active.rect.off();
-      active.rect.unbindTooltip();
-      active.rect.remove();
-      activeCells.delete(key);
-    }
+  for (const key of Array.from(activeCells.keys())) {
+    if (!desired.has(key)) destroyActiveCell(key);
   }
 
   // refresh remaining active cells
   for (const active of activeCells.values()) active.update();
 }
 
+function generateWorld() {
+  ensureCellsInView();
+}
+
+function movePlayer(dx: number, dy: number) {
+  const current = playerLocation.getLatLng();
+  const newLat = current.lat + dy * CONST.TILE_DEGREES;
+  const newLng = current.lng + dx * CONST.TILE_DEGREES;
+  const newPos = leaflet.latLng(newLat, newLng);
+  playerLocation.setLatLng(newPos);
+  map.panTo(newPos);
+  ensureCellsInView();
+}
+
+// Event listeners --------------------------------------------------------------------------------------------------------
 map.whenReady(() => {
   ensureCellsInView();
 });
@@ -262,7 +267,6 @@ map.on("moveend", () => {
   ensureCellsInView();
 });
 
-// Player movement -----------------------------------------------------------------------------------------------------------
 dpad.addEventListener("click", (event) => {
   const btn = (event.target as HTMLElement).id;
   if (btn === "up") movePlayer(0, 1);
@@ -271,18 +275,5 @@ dpad.addEventListener("click", (event) => {
   else if (btn === "right") movePlayer(1, 0);
 });
 
-function movePlayer(dx: number, dy: number) {
-  const current = playerLocation.getLatLng();
-  const newLat = current.lat + dy * TILE_DEGREES;
-  const newLng = current.lng + dx * TILE_DEGREES;
-  const newPos = leaflet.latLng(newLat, newLng);
-  playerLocation.setLatLng(newPos);
-  map.panTo(newPos);
-}
-
 // World Generation -------------------------------------------------------------------------------------------------------------
-function generateWorld() {
-  ensureCellsInView();
-}
-
 generateWorld();
