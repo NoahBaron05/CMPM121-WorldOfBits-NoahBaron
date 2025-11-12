@@ -200,8 +200,9 @@ function spawnCache(cell: Cell) {
       rectToken.value = playerInventory.value;
       playerInventory.value = 0;
     } else if (rectToken.value == playerInventory.value && hasRectangleToken) {
-      rectToken.value! += playerInventory.value;
+      rectToken.value += playerInventory.value;
       playerInventory.value = 0;
+      winCondition(rectToken.value, CONST.WIN_COUNT);
     }
 
     updateRectUI();
