@@ -50,3 +50,15 @@ Key gameplay challenge: Can players craft an even higher value token by moving t
 - [x] **#Step 19:** the player can scroll the map and new cells will generate
 - [x] **#Step 20:** Cells should appear to be memoryless in the sense that they forget their state when they are no longer visible on the screen
 - [x] **#Step 21:** Raise victory threshold
+
+## D3.c: Object Persistence
+
+Key technical challenge: Can your software accurately remember the state of map cells even when they scroll off the screen?
+
+Key gameplay challenge: Can you fix a gameplay bug where players can farm tokens by moving into and out of a region repeatedly to get access to fresh resources?
+
+### Steps (c)
+
+- [ ] **#Step 22:** Use the Flyweight pattern so that cells not visible on the map do not use memory if they have not been modified
+- [ ] **#Step 23:** Use the Memento pattern to preserve the state of modified cells when they are off screen
+- [ ] **#Step 24:** Restore cell data when they return onto the screen
