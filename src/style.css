@@ -14,12 +14,12 @@
 /* D‑pad layout */
 #dpad {
   position: fixed;
-  left: 1680px;
+  right: 16px;
   bottom: 16px;
   display: grid;
   grid-template-columns: repeat(3, 48px);
   grid-template-rows: repeat(3, 48px);
-  gap: 6px;
+  gap: 8px;
   align-items: center;
   justify-items: center;
   z-index: 1000;
