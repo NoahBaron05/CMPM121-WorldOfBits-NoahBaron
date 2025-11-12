@@ -59,6 +59,6 @@ Key gameplay challenge: Can you fix a gameplay bug where players can farm tokens
 
 ### Steps (c)
 
-- [ ] **#Step 22:** Use the Flyweight pattern so that cells not visible on the map do not use memory if they have not been modified
+- [x] **#Step 22:** Use the Flyweight pattern so that cells not visible on the map do not use memory if they have not been modified
 - [ ] **#Step 23:** Use the Memento pattern to preserve the state of modified cells when they are off screen
 - [ ] **#Step 24:** Restore cell data when they return onto the screen

@@ -39,6 +39,29 @@ interface ActiveCell {
 
 const activeCells = new Map<string, ActiveCell>();
 
+class CellFlyweight {
+  constructor(public readonly bounds: leaflet.LatLngBounds) {}
+
+  createRectangle(): leaflet.Rectangle {
+    return leaflet.rectangle(this.bounds);
+  }
+}
+
+class FlyweightFactory {
+  private flyweights = new Map<string, CellFlyweight>();
+
+  get(cell: Cell): CellFlyweight {
+    const key = cellKey(cell);
+    if (!this.flyweights.has(key)) {
+      const bounds = cellToBounds(cell);
+      this.flyweights.set(key, new CellFlyweight(bounds));
+    }
+    return this.flyweights.get(key)!;
+  }
+}
+
+const flyweightFactory = new FlyweightFactory();
+
 // Map Setup---------------------------------------------------------------------------------------------------------------
 const map = createMap();
 const playerLocation = leaflet.marker(CONST.SPAWN_POINT).addTo(map);
@@ -142,13 +165,13 @@ function spawnCache(cell: Cell) {
   const key = cellKey(cell);
   if (activeCells.has(key)) return;
 
-  const bounds = cellToBounds(cell);
+  const flyweight = flyweightFactory.get(cell);
+  const rect = flyweight.createRectangle().addTo(map);
+
   const rectToken: token = { value: getInitialTokenValue(cell) };
 
-  const rect = leaflet.rectangle(bounds).addTo(map);
-
   let tooltip: leaflet.Tooltip | null = null;
-  const center = bounds.getCenter();
+  const center = rect.getBounds().getCenter();
 
   function updateRectUI() {
     const distance = map.distance(center, playerLocation.getLatLng());
