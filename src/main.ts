@@ -66,18 +66,25 @@ const flyweightFactory = new FlyweightFactory();
 // Memento Pattern implementation-------------------------------------------------------------------------------
 interface Memento {
   key: string;
-  token: number;
+  // `null` means the cache empty by interaction;
+  // a `number` means the persisted token value for the cell (including 0).
+  token: number | null;
 }
 
 class MementoManager {
   private mementos = new Map<string, Memento>();
 
-  save(cell: Cell, token: number) {
+  save(cell: Cell, token: number | null) {
     this.mementos.set(cellKey(cell), { key: cellKey(cell), token });
   }
 
-  restore(key: string): number | null {
-    return this.mementos.get(key)?.token || null;
+  // Returns:
+  // - `number` when a numeric memento exists,
+  // - `null` when a memento explicitly records deletion (non-existent),
+  // - `undefined` when there's no memento for the key.
+  restore(key: string): number | null | undefined {
+    if (!this.mementos.has(key)) return undefined;
+    return this.mementos.get(key)!.token;
   }
 
   getAll(): Memento[] {
@@ -184,7 +191,7 @@ function destroyActiveCell(key: string) {
 function getInitialTokenValue(cell: Cell): number {
   const key = cellKey(cell);
   const saved = mementoManager.restore(key);
-  if (saved != null) return saved;
+  if (saved) return saved;
 
   const roll = luck(key);
   return roll < CONST.RECTANGLE_SPAWN_PROBABILITY ? 1 : 0;
@@ -194,10 +201,15 @@ function spawnCache(cell: Cell) {
   const key = cellKey(cell);
   if (activeCells.has(key)) return;
 
+  const saved = mementoManager.restore(key);
+  if (saved === null) return;
+
   const flyweight = flyweightFactory.get(cell);
   const rect = flyweight.createRectangle().addTo(map);
 
-  const rectToken: token = { value: getInitialTokenValue(cell) };
+  const rectToken: token = {
+    value: typeof saved === "number" ? saved : getInitialTokenValue(cell),
+  };
 
   let tooltip: leaflet.Tooltip | null = null;
   const center = rect.getBounds().getCenter();
@@ -259,11 +271,19 @@ function spawnCache(cell: Cell) {
       winCondition(rectToken.value, CONST.WIN_COUNT);
     }
 
-    if (before !== rectToken.value) {
-      mementoManager.save(cell, rectToken.value);
+    const after = rectToken.value;
+    if (before !== after) {
+      if (after === 0) {
+        destroyActiveCell(key);
+        mementoManager.save(cell, null);
+        updateInventoryDisplay();
+      }
+
+      mementoManager.save(cell, after);
     }
 
     updateRectUI();
+    ensureCellsInView();
   };
 
   rect.on("click", onClick);
