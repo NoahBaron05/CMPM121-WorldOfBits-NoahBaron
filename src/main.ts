@@ -211,85 +211,110 @@ function spawnCache(cell: Cell) {
     value: typeof saved === "number" ? saved : getInitialTokenValue(cell),
   };
 
-  let tooltip: leaflet.Tooltip | null = null;
+  const tooltip: leaflet.Tooltip | null = null;
   const center = rect.getBounds().getCenter();
-
-  function updateRectUI() {
-    const distance = map.distance(center, playerLocation.getLatLng());
-
-    // style based on reach
-    if (distance > CONST.MAX_REACH_DISTANCE) {
-      rect.setStyle(CONST.STYLE.UNREACHABLE);
-    } else {
-      rect.setStyle(CONST.STYLE.REACHABLE);
-    }
-
-    // tooltip reflect token value: only show for non-zero tokens
-    if (rectToken.value !== 0) {
-      if (tooltip) {
-        tooltip.setContent(rectToken.value.toString());
-      } else {
-        tooltip = leaflet
-          .tooltip({
-            permanent: true,
-            direction: "center",
-            className: "token-tooltip",
-          })
-          .setContent(rectToken.value.toString());
-        rect.bindTooltip(tooltip);
-      }
-    } else {
-      if (tooltip) {
-        rect.unbindTooltip();
-        tooltip = null;
-      }
-    }
-
-    updateInventoryDisplay();
-  }
 
   // click behavior (mutations are in-memory only while active)
   const onClick = () => {
     const distance = map.distance(center, playerLocation.getLatLng());
     if (distance > CONST.MAX_REACH_DISTANCE) return;
 
-    const hasPlayerToken = playerInventory.value !== 0;
-    const hasRectangleToken = rectToken.value !== 0;
+    cellOperations(cell, key, rectToken);
 
-    const before = rectToken.value;
-
-    if (hasRectangleToken && !hasPlayerToken) {
-      playerInventory.value = rectToken.value;
-      rectToken.value = 0;
-      winCondition(playerInventory.value!, CONST.WIN_COUNT);
-    } else if (!hasRectangleToken && hasPlayerToken) {
-      rectToken.value = playerInventory.value;
-      playerInventory.value = 0;
-    } else if (rectToken.value == playerInventory.value && hasRectangleToken) {
-      rectToken.value += playerInventory.value;
-      playerInventory.value = 0;
-      winCondition(rectToken.value, CONST.WIN_COUNT);
-    }
-
-    const after = rectToken.value;
-    if (before !== after) {
-      if (after === 0) {
-        destroyActiveCell(key);
-        mementoManager.save(cell, null);
-        updateInventoryDisplay();
-      }
-
-      mementoManager.save(cell, after);
-    }
-
-    updateRectUI();
+    updateRectUI(rect, rectToken, center, tooltip);
     ensureCellsInView();
   };
 
   rect.on("click", onClick);
-  const active: ActiveCell = { cell, rect, rectToken, update: updateRectUI };
+  const active: ActiveCell = {
+    cell,
+    rect,
+    rectToken,
+    update: () => updateRectUI(rect, rectToken, center, tooltip),
+  };
   activeCells.set(key, active);
-  updateRectUI();
+  updateRectUI(rect, rectToken, center, tooltip);
+}
+
+function updateRectUI(
+  rect: leaflet.Rectangle,
+  rectToken: token,
+  center: leaflet.LatLng,
+  tooltip: leaflet.Tooltip | null,
+) {
+  const distance = map.distance(center, playerLocation.getLatLng());
+
+  // style based on reach
+  if (distance > CONST.MAX_REACH_DISTANCE) {
+    rect.setStyle(CONST.STYLE.UNREACHABLE);
+  } else {
+    rect.setStyle(CONST.STYLE.REACHABLE);
+  }
+
+  tooltip = updateTooltip(tooltip, rect, rectToken);
+
+  updateInventoryDisplay();
+}
+
+function updateTooltip(
+  tooltip: leaflet.Tooltip | null,
+  rect: leaflet.Rectangle,
+  rectToken: token,
+) {
+  if (rectToken.value !== 0) {
+    if (tooltip) {
+      tooltip.setContent(rectToken.value.toString());
+    } else {
+      tooltip = leaflet
+        .tooltip({
+          permanent: true,
+          direction: "center",
+          className: "token-tooltip",
+        })
+        .setContent(rectToken.value.toString());
+      rect.bindTooltip(tooltip);
+    }
+  } else {
+    if (tooltip) {
+      rect.unbindTooltip();
+      tooltip = null;
+    }
+  }
+  return tooltip;
+}
+
+function cellOperations(
+  cell: Cell,
+  key: string,
+  rectToken: token,
+) {
+  const hasPlayerToken = playerInventory.value !== 0;
+  const hasRectangleToken = rectToken.value !== 0;
+  const before = rectToken.value;
+
+  if (hasRectangleToken && !hasPlayerToken) {
+    playerInventory.value = rectToken.value;
+    rectToken.value = 0;
+    winCondition(playerInventory.value!, CONST.WIN_COUNT);
+  } else if (!hasRectangleToken && hasPlayerToken) {
+    rectToken.value = playerInventory.value;
+    playerInventory.value = 0;
+  } else if (rectToken.value == playerInventory.value && hasRectangleToken) {
+    rectToken.value += playerInventory.value;
+    playerInventory.value = 0;
+    winCondition(rectToken.value, CONST.WIN_COUNT);
+  }
+
+  const after = rectToken.value;
+  if (before !== after) {
+    if (after === 0) {
+      destroyActiveCell(key);
+      mementoManager.save(cell, null);
+      updateInventoryDisplay();
+    }
+
+    mementoManager.save(cell, after);
+  }
 }
 
 // Spawn cells in when they are inside the screen (and fully clean them up when they leave)
