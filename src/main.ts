@@ -37,8 +37,6 @@ interface ActiveCell {
   update: () => void;
 }
 
-const activeCells = new Map<string, ActiveCell>();
-
 // Flyweight pattern implementation--------------------------------------------------------------------------------
 class CellFlyweight {
   constructor(public readonly bounds: leaflet.LatLngBounds) {}
@@ -93,6 +91,127 @@ class MementoManager {
 }
 
 const mementoManager = new MementoManager();
+
+// Cell class setup ------------------------------------------------------------------------------------------------------------
+class ActiveCell {
+  tooltip: leaflet.Tooltip | null = null;
+
+  constructor(
+    public cell: Cell,
+    public rect: leaflet.Rectangle,
+    public token: token,
+  ) {}
+
+  updateUI(playerPos: leaflet.LatLng) {
+    const center = this.rect.getBounds().getCenter();
+    const distance = map.distance(center, playerPos);
+
+    // style based on reach
+    if (distance > CONST.MAX_REACH_DISTANCE) {
+      this.rect.setStyle(CONST.STYLE.UNREACHABLE);
+    } else {
+      this.rect.setStyle(CONST.STYLE.REACHABLE);
+    }
+
+    this.updateTooltip();
+  }
+
+  updateTooltip() {
+    if (this.token.value === 0) {
+      if (this.tooltip) {
+        this.rect.unbindTooltip();
+        this.tooltip = null;
+      }
+      return;
+    }
+
+    if (!this.tooltip) {
+      this.tooltip = leaflet
+        .tooltip({
+          permanent: true,
+          direction: "center",
+          className: "token-tooltip",
+        });
+      this.rect.bindTooltip(this.tooltip);
+    }
+    this.tooltip.setContent(String(this.token.value));
+  }
+}
+
+class CellManager {
+  private activeCells = new Map<string, ActiveCell>();
+
+  constructor(
+    private flyweights: FlyweightFactory,
+    private mementos: MementoManager,
+  ) {}
+
+  spawn(cell: Cell) {
+    const key = cellKey(cell);
+    if (this.activeCells.has(key)) return;
+
+    const saved = this.mementos.restore(key);
+    if (saved === null) return;
+
+    const rect = this.flyweights.get(cell).createRectangle().addTo(map);
+    const tokenVal = typeof saved === "number"
+      ? saved
+      : getInitialTokenValue(cell);
+
+    const active = new ActiveCell(cell, rect, { value: tokenVal });
+    this.activeCells.set(key, active);
+
+    rect.on("click", () => this.handleClick(active));
+    active.updateUI(playerLocation.getLatLng());
+  }
+
+  destroy(key: string) {
+    const cell = this.activeCells.get(key);
+    if (!cell) return;
+    cell.rect.off();
+    cell.rect.remove();
+    this.activeCells.delete(key);
+  }
+
+  handleClick(active: ActiveCell) {
+    const center = active.rect.getBounds().getCenter();
+    if (
+      map.distance(center, playerLocation.getLatLng()) >
+        CONST.MAX_REACH_DISTANCE
+    ) return;
+
+    const oldVal = active.token.value;
+
+    tokenTransfer(active.token);
+
+    if (active.token.value !== oldVal) {
+      if (active.token.value === 0) {
+        this.mementos.save(active.cell, 0);
+      } else {
+        this.mementos.save(active.cell, active.token.value);
+      }
+    }
+
+    active.updateUI(playerLocation.getLatLng());
+    updateInventoryDisplay();
+  }
+
+  updateAll(playerPos: leaflet.LatLng) {
+    for (const cell of this.activeCells.values()) {
+      cell.updateUI(playerPos);
+    }
+  }
+
+  removeAllExcept(desiredKeys: Set<string>) {
+    for (const key of this.activeCells.keys()) {
+      if (!desiredKeys.has(key)) {
+        this.destroy(key);
+      }
+    }
+  }
+}
+
+const cellManager = new CellManager(flyweightFactory, mementoManager);
 
 // Map Setup---------------------------------------------------------------------------------------------------------------
 const map = createMap();
@@ -178,148 +297,25 @@ function cellToBounds(c: Cell): leaflet.LatLngBounds {
   );
 }
 
-function destroyActiveCell(key: string) {
-  const active = activeCells.get(key);
-  if (!active) return;
-  active.rect.off();
-  active.rect.unbindTooltip();
-  active.rect.remove();
-  activeCells.delete(key);
-}
+function tokenTransfer(rectToken: token) {
+  const hasPlayer = playerInventory.value !== 0;
+  const hasCell = rectToken.value !== 0;
 
-// Cache Logic ----------------------------------------------------------------------------------------------------------------------------
-function getInitialTokenValue(cell: Cell): number {
-  const key = cellKey(cell);
-  const saved = mementoManager.restore(key);
-  if (saved) return saved;
-
-  const roll = luck(key);
-  return roll < CONST.RECTANGLE_SPAWN_PROBABILITY ? 1 : 0;
-}
-
-function spawnCache(cell: Cell) {
-  const key = cellKey(cell);
-  if (activeCells.has(key)) return;
-
-  const saved = mementoManager.restore(key);
-  if (saved === null) return;
-
-  const flyweight = flyweightFactory.get(cell);
-  const rect = flyweight.createRectangle().addTo(map);
-
-  const rectToken: token = {
-    value: typeof saved === "number" ? saved : getInitialTokenValue(cell),
-  };
-
-  const tooltip: leaflet.Tooltip | null = null;
-  const center = rect.getBounds().getCenter();
-
-  // click behavior (mutations are in-memory only while active)
-  const onClick = () => {
-    const distance = map.distance(center, playerLocation.getLatLng());
-    if (distance > CONST.MAX_REACH_DISTANCE) return;
-
-    cellOperations(cell, key, rectToken);
-
-    updateRectUI(rect, rectToken, center, tooltip);
-    ensureCellsInView();
-  };
-
-  rect.on("click", onClick);
-  const active: ActiveCell = {
-    cell,
-    rect,
-    rectToken,
-    update: () => updateRectUI(rect, rectToken, center, tooltip),
-  };
-  activeCells.set(key, active);
-  updateRectUI(rect, rectToken, center, tooltip);
-}
-
-function updateRectUI(
-  rect: leaflet.Rectangle,
-  rectToken: token,
-  center: leaflet.LatLng,
-  tooltip: leaflet.Tooltip | null,
-) {
-  const distance = map.distance(center, playerLocation.getLatLng());
-
-  // style based on reach
-  if (distance > CONST.MAX_REACH_DISTANCE) {
-    rect.setStyle(CONST.STYLE.UNREACHABLE);
-  } else {
-    rect.setStyle(CONST.STYLE.REACHABLE);
-  }
-
-  tooltip = updateTooltip(tooltip, rect, rectToken);
-
-  updateInventoryDisplay();
-}
-
-function updateTooltip(
-  tooltip: leaflet.Tooltip | null,
-  rect: leaflet.Rectangle,
-  rectToken: token,
-) {
-  if (rectToken.value !== 0) {
-    if (tooltip) {
-      tooltip.setContent(rectToken.value.toString());
-    } else {
-      tooltip = leaflet
-        .tooltip({
-          permanent: true,
-          direction: "center",
-          className: "token-tooltip",
-        })
-        .setContent(rectToken.value.toString());
-      rect.bindTooltip(tooltip);
-    }
-  } else {
-    if (tooltip) {
-      rect.unbindTooltip();
-      tooltip = null;
-    }
-  }
-  return tooltip;
-}
-
-function cellOperations(
-  cell: Cell,
-  key: string,
-  rectToken: token,
-) {
-  const hasPlayerToken = playerInventory.value !== 0;
-  const hasRectangleToken = rectToken.value !== 0;
-  const before = rectToken.value;
-
-  if (hasRectangleToken && !hasPlayerToken) {
+  if (hasCell && !hasPlayer) {
     playerInventory.value = rectToken.value;
     rectToken.value = 0;
-    winCondition(playerInventory.value!, CONST.WIN_COUNT);
-  } else if (!hasRectangleToken && hasPlayerToken) {
+    winCondition(playerInventory.value, CONST.WIN_COUNT);
+  } else if (!hasCell && hasPlayer) {
     rectToken.value = playerInventory.value;
     playerInventory.value = 0;
-  } else if (rectToken.value == playerInventory.value && hasRectangleToken) {
+  } else if (hasCell && rectToken.value === playerInventory.value) {
     rectToken.value += playerInventory.value;
     playerInventory.value = 0;
     winCondition(rectToken.value, CONST.WIN_COUNT);
   }
-
-  const after = rectToken.value;
-  if (before !== after) {
-    if (after === 0) {
-      destroyActiveCell(key);
-      mementoManager.save(cell, null);
-      updateInventoryDisplay();
-    }
-
-    mementoManager.save(cell, after);
-  }
 }
 
-// Spawn cells in when they are inside the screen (and fully clean them up when they leave)
-function ensureCellsInView() {
-  const bounds = map.getBounds();
+function getVisibleCells(bounds: leaflet.LatLngBounds) {
   const southWest = bounds.getSouthWest();
   const northEast = bounds.getNorthEast();
 
@@ -328,24 +324,37 @@ function ensureCellsInView() {
   const minJ = Math.floor(southWest.lng / CONST.TILE_DEGREES) - 1;
   const maxJ = Math.floor(northEast.lng / CONST.TILE_DEGREES) + 1;
 
-  const desired = new Set<string>();
+  return { minI, maxI, minJ, maxJ };
+}
+
+// Cache Logic ----------------------------------------------------------------------------------------------------------------------------
+function getInitialTokenValue(cell: Cell): number {
+  const key = cellKey(cell);
+  const saved = mementoManager.restore(key);
+  if (saved !== undefined) return saved as number;
+
+  const roll = luck(key);
+  return roll < CONST.RECTANGLE_SPAWN_PROBABILITY ? 1 : 0;
+}
+
+// Spawn cells in when they are inside the screen (and fully clean them up when they leave)
+function ensureCellsInView() {
+  const bounds = map.getBounds();
+  const { minI, maxI, minJ, maxJ } = getVisibleCells(bounds);
+
+  const desiredKeys = new Set<string>();
+
   for (let i = minI; i <= maxI; i++) {
     for (let j = minJ; j <= maxJ; j++) {
-      const cell = { i, j } as Cell;
+      const cell = { i, j };
       const key = cellKey(cell);
-      desired.add(cellKey({ i, j }));
-      if (!activeCells.has(key)) {
-        spawnCache(cell);
-      }
+      desiredKeys.add(key);
+      cellManager.spawn(cell);
     }
   }
 
-  for (const key of Array.from(activeCells.keys())) {
-    if (!desired.has(key)) destroyActiveCell(key);
-  }
-
-  // refresh remaining active cells
-  for (const active of activeCells.values()) active.update();
+  cellManager.removeAllExcept(desiredKeys);
+  cellManager.updateAll(playerLocation.getLatLng());
 }
 
 function generateWorld() {
