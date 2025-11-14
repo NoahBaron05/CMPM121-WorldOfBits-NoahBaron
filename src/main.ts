@@ -38,7 +38,7 @@ interface ActiveCell {
 }
 
 // Flyweight pattern implementation--------------------------------------------------------------------------------
-class CellFlyweight {
+class Flyweight {
   constructor(public readonly bounds: leaflet.LatLngBounds) {}
 
   createRectangle(): leaflet.Rectangle {
@@ -47,13 +47,13 @@ class CellFlyweight {
 }
 
 class FlyweightFactory {
-  private flyweights = new Map<string, CellFlyweight>();
+  private flyweights = new Map<string, Flyweight>();
 
-  get(cell: Cell): CellFlyweight {
+  get(cell: Cell): Flyweight {
     const key = cellKey(cell);
     if (!this.flyweights.has(key)) {
       const bounds = cellToBounds(cell);
-      this.flyweights.set(key, new CellFlyweight(bounds));
+      this.flyweights.set(key, new Flyweight(bounds));
     }
     return this.flyweights.get(key)!;
   }
@@ -106,7 +106,6 @@ class ActiveCell {
     const center = this.rect.getBounds().getCenter();
     const distance = map.distance(center, playerPos);
 
-    // style based on reach
     if (distance > CONST.MAX_REACH_DISTANCE) {
       this.rect.setStyle(CONST.STYLE.UNREACHABLE);
     } else {
@@ -151,12 +150,14 @@ class CellManager {
     if (this.activeCells.has(key)) return;
 
     const saved = this.mementos.restore(key);
+
     if (saved === null) return;
 
     const rect = this.flyweights.get(cell).createRectangle().addTo(map);
-    const tokenVal = typeof saved === "number"
-      ? saved
-      : getInitialTokenValue(cell);
+
+    const tokenVal = (saved !== undefined)
+      ? saved // Load interacted-with value
+      : getInitialTokenValue(cell); // Natural spawn
 
     const active = new ActiveCell(cell, rect, { value: tokenVal });
     this.activeCells.set(key, active);
@@ -165,9 +166,23 @@ class CellManager {
     active.updateUI(playerLocation.getLatLng());
   }
 
+  resetUI() {
+    for (const key of this.activeCells.keys()) {
+      this.destroy(key);
+    }
+    this.activeCells.clear();
+  }
+
   destroy(key: string) {
     const cell = this.activeCells.get(key);
     if (!cell) return;
+
+    if (cell.tooltip) {
+      cell.tooltip.remove();
+      cell.rect.unbindTooltip();
+      cell.tooltip = null;
+    }
+
     cell.rect.off();
     cell.rect.remove();
     this.activeCells.delete(key);
@@ -185,11 +200,7 @@ class CellManager {
     tokenTransfer(active.token);
 
     if (active.token.value !== oldVal) {
-      if (active.token.value === 0) {
-        this.mementos.save(active.cell, 0);
-      } else {
-        this.mementos.save(active.cell, active.token.value);
-      }
+      this.mementos.save(active.cell, active.token.value);
     }
 
     active.updateUI(playerLocation.getLatLng());
@@ -338,7 +349,7 @@ function getInitialTokenValue(cell: Cell): number {
 }
 
 // Spawn cells in when they are inside the screen (and fully clean them up when they leave)
-function ensureCellsInView() {
+function generateWorld() {
   const bounds = map.getBounds();
   const { minI, maxI, minJ, maxJ } = getVisibleCells(bounds);
 
@@ -346,19 +357,14 @@ function ensureCellsInView() {
 
   for (let i = minI; i <= maxI; i++) {
     for (let j = minJ; j <= maxJ; j++) {
-      const cell = { i, j };
-      const key = cellKey(cell);
-      desiredKeys.add(key);
-      cellManager.spawn(cell);
+      desiredKeys.add(cellKey({ i, j }));
+      cellManager.spawn({ i, j });
     }
   }
 
   cellManager.removeAllExcept(desiredKeys);
-  cellManager.updateAll(playerLocation.getLatLng());
-}
 
-function generateWorld() {
-  ensureCellsInView();
+  cellManager.updateAll(playerLocation.getLatLng());
 }
 
 function movePlayer(dx: number, dy: number) {
@@ -368,16 +374,16 @@ function movePlayer(dx: number, dy: number) {
   const newPos = leaflet.latLng(newLat, newLng);
   playerLocation.setLatLng(newPos);
   map.panTo(newPos);
-  ensureCellsInView();
+  generateWorld();
 }
 
 // Event listeners --------------------------------------------------------------------------------------------------------
 map.whenReady(() => {
-  ensureCellsInView();
+  generateWorld();
 });
 
 map.on("moveend", () => {
-  ensureCellsInView();
+  generateWorld();
 });
 
 dpad.addEventListener("click", (event) => {
@@ -388,5 +394,4 @@ dpad.addEventListener("click", (event) => {
   else if (btn === "right") movePlayer(1, 0);
 });
 
-// World Generation -------------------------------------------------------------------------------------------------------------
 generateWorld();
