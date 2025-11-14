@@ -207,9 +207,9 @@ class CellManager {
     updateInventoryDisplay();
   }
 
-  updateAll(playerPos: leaflet.LatLng) {
+  updateAll(playerPosition: leaflet.LatLng) {
     for (const cell of this.activeCells.values()) {
-      cell.updateUI(playerPos);
+      cell.updateUI(playerPosition);
     }
   }
 
@@ -308,21 +308,21 @@ function cellToBounds(c: Cell): leaflet.LatLngBounds {
   );
 }
 
-function tokenTransfer(rectToken: token) {
+function tokenTransfer(token: token) {
   const hasPlayer = playerInventory.value !== 0;
-  const hasCell = rectToken.value !== 0;
+  const hasCell = token.value !== 0;
 
   if (hasCell && !hasPlayer) {
-    playerInventory.value = rectToken.value;
-    rectToken.value = 0;
+    playerInventory.value = token.value;
+    token.value = 0;
     winCondition(playerInventory.value, CONST.WIN_COUNT);
   } else if (!hasCell && hasPlayer) {
-    rectToken.value = playerInventory.value;
+    token.value = playerInventory.value;
     playerInventory.value = 0;
-  } else if (hasCell && rectToken.value === playerInventory.value) {
-    rectToken.value += playerInventory.value;
+  } else if (hasCell && token.value === playerInventory.value) {
+    token.value += playerInventory.value;
     playerInventory.value = 0;
-    winCondition(rectToken.value, CONST.WIN_COUNT);
+    winCondition(token.value, CONST.WIN_COUNT);
   }
 }
 
