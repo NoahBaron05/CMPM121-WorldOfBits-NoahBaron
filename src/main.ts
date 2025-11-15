@@ -238,37 +238,90 @@ class CellManager {
 
 const cellManager = new CellManager(flyweightFactory, mementoManager);
 
+// Movement options setup -------------------------------------------------------------------------------------------------------
+interface MovementStrategy {
+  enable(): void;
+  disable(): void;
+}
+
+class GPSMovement implements MovementStrategy {
+  private watchID: number | null = null;
+
+  enable(): void {
+    if (this.watchID !== null) return;
+
+    this.watchID = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        const newPos = leaflet.latLng(latitude, longitude);
+
+        playerLocation.setLatLng(newPos);
+        map.panTo(newPos);
+        generateWorld();
+      },
+      (error) => {
+        console.warn("GPS error:", error.message);
+      },
+      { enableHighAccuracy: true, maximumAge: 1000, timeout: 5000 },
+    );
+  }
+
+  disable(): void {
+    if (this.watchID == null) return;
+    navigator.geolocation.clearWatch(this.watchID);
+    this.watchID = null;
+  }
+}
+
+class DPADMovement implements MovementStrategy {
+  private handler = (event: Event) => {
+    const btn = (event.target as HTMLElement).id;
+    if (btn === "up") movePlayer(0, 1);
+    else if (btn === "down") movePlayer(0, -1);
+    else if (btn === "left") movePlayer(-1, 0);
+    else if (btn === "right") movePlayer(1, 0);
+  };
+
+  enable() {
+    dpad.addEventListener("click", this.handler);
+    dpad.style.visibility = "visible";
+  }
+
+  disable() {
+    dpad.removeEventListener("click", this.handler);
+    dpad.style.visibility = "hidden";
+  }
+}
+
+class MovementFacade {
+  private gps: MovementStrategy;
+  private dpad: MovementStrategy;
+  private usingGPS = true;
+
+  constructor(gps: MovementStrategy, dpad: MovementStrategy) {
+    this.gps = gps;
+    this.dpad = dpad;
+
+    this.gps.enable();
+    this.dpad.disable();
+  }
+
+  toggle() {
+    if (this.usingGPS) {
+      this.gps.disable();
+      this.dpad.enable();
+    } else {
+      this.gps.enable();
+      this.dpad.disable();
+    }
+
+    this.usingGPS = !this.usingGPS;
+  }
+}
+
 // Map Setup---------------------------------------------------------------------------------------------------------------
 const map = createMap();
-
-navigator.geolocation.watchPosition((pos) => {
-  const newPos = leaflet.latLng(pos.coords.latitude, pos.coords.longitude);
-  playerLocation.setLatLng(newPos);
-  map.panTo(newPos);
-  generateWorld();
-});
-
 const playerLocation = leaflet.marker(CONST.SPAWN_POINT).addTo(map);
-
-navigator.geolocation.watchPosition(
-  (position) => {
-    const { latitude, longitude } = position.coords;
-    const newPos = leaflet.latLng(latitude, longitude);
-
-    // Update player marker
-    playerLocation.setLatLng(newPos);
-
-    // Keep camera centered
-    map.panTo(newPos);
-
-    // Recalculate visible world + UI
-    generateWorld();
-  },
-  (error) => {
-    console.warn("GPS error:", error.message);
-  },
-  { enableHighAccuracy: true, maximumAge: 1000, timeout: 5000 },
-);
 
 // UI Elements -------------------------------------------------------------------------------------------------------------------
 const inventoryDiv = document.createElement("div");
@@ -276,6 +329,11 @@ inventoryDiv.id = "inventory";
 inventoryDiv.innerText = "\nInventory: ";
 inventoryDiv.style.fontSize = "32px";
 document.body.append(inventoryDiv);
+
+const movementSwapButton = document.createElement("button");
+movementSwapButton.id = "movementSwap";
+movementSwapButton.textContent = "Swap between geolocation and dpad movement";
+document.body.append(movementSwapButton);
 
 const dpad = document.createElement("div");
 dpad.id = "dpad";
@@ -293,6 +351,9 @@ dpad.innerHTML = `
   <div class="dpad-cell"></div>
 `;
 document.body.append(dpad);
+
+const movement = new MovementFacade(new GPSMovement(), new DPADMovement());
+movementSwapButton.onclick = () => movement.toggle();
 
 // Functions ---------------------------------------------------------------------------------------------------------
 function createMap(): leaflet.Map {
@@ -426,14 +487,6 @@ map.whenReady(() => {
 
 map.on("moveend", () => {
   generateWorld();
-});
-
-dpad.addEventListener("click", (event) => {
-  const btn = (event.target as HTMLElement).id;
-  if (btn === "up") movePlayer(0, 1);
-  else if (btn === "down") movePlayer(0, -1);
-  else if (btn === "left") movePlayer(-1, 0);
-  else if (btn === "right") movePlayer(1, 0);
 });
 
 generateWorld();

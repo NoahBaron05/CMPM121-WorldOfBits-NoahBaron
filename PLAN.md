@@ -73,7 +73,7 @@ Key gameplay challenge: Can the user test the game with multiple gameplay sessio
 
 - [x] **#Step 25:** Use browser geolocation API to track players initial location
 - [x] **#Step 26:** All player movement and interaction through real world movement, rather than buttons
-- [ ] **#Step 27:** Use the Facade design pattern to hide player movement
-- [ ] **#Step 28:** Provide a button to swap between button and real world based movement
+- [x] **#Step 27:** Use the Facade design pattern to hide player movement
+- [x] **#Step 28:** Provide a button to swap between button and real world based movement
 - [ ] **#Step 29:** Use localStorage API to store player data between loads
 - [ ] **#Step 30:** Provide a button to start a new game
