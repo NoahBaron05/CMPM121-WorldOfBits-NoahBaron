@@ -88,6 +88,7 @@ class MementoManager {
 
   save(cell: Cell, token: number | null) {
     this.mementos.set(cellKey(cell), { key: cellKey(cell), token });
+    Storage.save("mementos", this.getAll());
   }
 
   // Returns:
@@ -101,6 +102,13 @@ class MementoManager {
 
   getAll(): Memento[] {
     return Array.from(this.mementos.values());
+  }
+
+  loadAll() {
+    const loaded = Storage.load<Memento[]>("mementos", []);
+    for (const m of loaded) {
+      this.mementos.set(m.key, m);
+    }
   }
 }
 
@@ -258,6 +266,8 @@ class GPSMovement implements MovementStrategy {
         playerLocation.setLatLng(newPos);
         map.panTo(newPos);
         generateWorld();
+
+        Storage.save("playerPosition", { lat: latitude, lng: longitude });
       },
       (error) => {
         console.warn("GPS error:", error.message);
@@ -296,28 +306,58 @@ class DPADMovement implements MovementStrategy {
 class MovementFacade {
   private gps: MovementStrategy;
   private dpad: MovementStrategy;
-  private usingGPS = true;
+  private usingGPS: boolean;
 
   constructor(gps: MovementStrategy, dpad: MovementStrategy) {
     this.gps = gps;
     this.dpad = dpad;
 
-    this.gps.enable();
-    this.dpad.disable();
+    this.usingGPS = Storage.load("movementMode", true);
+
+    if (this.usingGPS) {
+      this.gps.enable();
+      this.dpad.disable();
+    } else {
+      this.gps.disable();
+      this.dpad.enable();
+    }
   }
 
   toggle() {
+    this.usingGPS = !this.usingGPS;
+    Storage.save("movementMode", this.usingGPS);
+
     if (this.usingGPS) {
-      this.gps.disable();
-      this.dpad.enable();
-    } else {
       this.gps.enable();
       this.dpad.disable();
+    } else {
+      this.gps.disable();
+      this.dpad.enable();
     }
-
-    this.usingGPS = !this.usingGPS;
   }
 }
+
+// Storage setup -------------------------------------------------------------------------------------------------------------------
+const Storage = {
+  save<T>(key: string, value: T) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (e) {
+      console.warn("Storage.save failed", e);
+    }
+  },
+
+  load<T>(key: string, fallback: T) {
+    const raw = localStorage.getItem(key);
+    if (raw === null) return fallback;
+    try {
+      return JSON.parse(raw) as T;
+    } catch (e) {
+      console.warn("Storage.load JSON parse failed for key", key, e);
+      return fallback;
+    }
+  },
+};
 
 // Map Setup---------------------------------------------------------------------------------------------------------------
 const map = createMap();
@@ -354,6 +394,18 @@ document.body.append(dpad);
 
 const movement = new MovementFacade(new GPSMovement(), new DPADMovement());
 movementSwapButton.onclick = () => movement.toggle();
+
+//Load in state updates --------------------------------------------------------------------------------------------------------
+playerInventory.value = Storage.load("inventory", 0);
+updateInventoryDisplay();
+
+const storedPos = Storage.load("playerPosition", null);
+if (storedPos) {
+  playerLocation.setLatLng(storedPos);
+  map.panTo(storedPos);
+}
+
+mementoManager.loadAll();
 
 // Functions ---------------------------------------------------------------------------------------------------------
 function createMap(): leaflet.Map {
@@ -427,6 +479,8 @@ function tokenTransfer(token: token) {
     playerInventory.value = 0;
     winCondition(token.value, CONST.WIN_COUNT);
   }
+
+  Storage.save("inventory", playerInventory.value);
 }
 
 function getVisibleCells(bounds: leaflet.LatLngBounds) {
@@ -478,6 +532,8 @@ function movePlayer(dx: number, dy: number) {
   playerLocation.setLatLng(newPos);
   map.panTo(newPos);
   generateWorld();
+
+  Storage.save("playerPosition", { lat: newLat, lng: newLng });
 }
 
 // Event listeners --------------------------------------------------------------------------------------------------------
