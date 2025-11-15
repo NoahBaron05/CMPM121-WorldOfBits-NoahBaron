@@ -110,6 +110,10 @@ class MementoManager {
       this.mementos.set(m.key, m);
     }
   }
+
+  reset() {
+    this.mementos.clear();
+  }
 }
 
 const mementoManager = new MementoManager();
@@ -357,6 +361,10 @@ const Storage = {
       return fallback;
     }
   },
+
+  clear() {
+    localStorage.clear();
+  },
 };
 
 // Map Setup---------------------------------------------------------------------------------------------------------------
@@ -374,6 +382,16 @@ const movementSwapButton = document.createElement("button");
 movementSwapButton.id = "movementSwap";
 movementSwapButton.textContent = "Swap between geolocation and dpad movement";
 document.body.append(movementSwapButton);
+
+const newGameButton = document.createElement("button");
+newGameButton.id = "newGame";
+newGameButton.textContent = "Start New Game";
+document.body.append(newGameButton);
+newGameButton.onclick = () => {
+  Storage.clear();
+  resetGame();
+  generateWorld();
+};
 
 const dpad = document.createElement("div");
 dpad.id = "dpad";
@@ -534,6 +552,26 @@ function movePlayer(dx: number, dy: number) {
   generateWorld();
 
   Storage.save("playerPosition", { lat: newLat, lng: newLng });
+}
+
+function resetGame() {
+  mementoManager.reset();
+
+  cellManager.resetUI();
+
+  playerInventory.value = 0;
+  Storage.save("inventory", 0);
+  updateInventoryDisplay();
+
+  playerCurrentPosition().then(({ lat, lng }) => {
+    const spawn = leaflet.latLng(lat, lng);
+    playerLocation.setLatLng(spawn);
+    map.panTo(spawn);
+
+    Storage.save("playerPosition", { lat, lng });
+
+    generateWorld();
+  });
 }
 
 // Event listeners --------------------------------------------------------------------------------------------------------
