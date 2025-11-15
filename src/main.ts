@@ -240,7 +240,35 @@ const cellManager = new CellManager(flyweightFactory, mementoManager);
 
 // Map Setup---------------------------------------------------------------------------------------------------------------
 const map = createMap();
+
+navigator.geolocation.watchPosition((pos) => {
+  const newPos = leaflet.latLng(pos.coords.latitude, pos.coords.longitude);
+  playerLocation.setLatLng(newPos);
+  map.panTo(newPos);
+  generateWorld();
+});
+
 const playerLocation = leaflet.marker(CONST.SPAWN_POINT).addTo(map);
+
+navigator.geolocation.watchPosition(
+  (position) => {
+    const { latitude, longitude } = position.coords;
+    const newPos = leaflet.latLng(latitude, longitude);
+
+    // Update player marker
+    playerLocation.setLatLng(newPos);
+
+    // Keep camera centered
+    map.panTo(newPos);
+
+    // Recalculate visible world + UI
+    generateWorld();
+  },
+  (error) => {
+    console.warn("GPS error:", error.message);
+  },
+  { enableHighAccuracy: true, maximumAge: 1000, timeout: 5000 },
+);
 
 // UI Elements -------------------------------------------------------------------------------------------------------------------
 const inventoryDiv = document.createElement("div");
