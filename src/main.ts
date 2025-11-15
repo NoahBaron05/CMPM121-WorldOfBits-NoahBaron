@@ -40,17 +40,6 @@ interface ActiveCell {
   update: () => void;
 }
 
-function playerCurrentPosition(): Promise<{ lat: number; lng: number }> {
-  return new Promise((resolve) => {
-    navigator.geolocation.getCurrentPosition(
-      (position: GeolocationPosition) => {
-        const { latitude: lat, longitude: lng } = position.coords;
-        resolve({ lat, lng });
-      },
-    );
-  });
-}
-
 // Flyweight pattern implementation--------------------------------------------------------------------------------
 class Flyweight {
   constructor(public readonly bounds: leaflet.LatLngBounds) {}
@@ -513,7 +502,17 @@ function getVisibleCells(bounds: leaflet.LatLngBounds) {
   return { minI, maxI, minJ, maxJ };
 }
 
-// Cache Logic ----------------------------------------------------------------------------------------------------------------------------
+function playerCurrentPosition(): Promise<{ lat: number; lng: number }> {
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (position: GeolocationPosition) => {
+        const { latitude: lat, longitude: lng } = position.coords;
+        resolve({ lat, lng });
+      },
+    );
+  });
+}
+
 function getInitialTokenValue(cell: Cell): number {
   const key = cellKey(cell);
   const saved = mementoManager.restore(key);
