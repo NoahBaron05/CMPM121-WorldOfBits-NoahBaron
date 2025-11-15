@@ -62,3 +62,18 @@ Key gameplay challenge: Can you fix a gameplay bug where players can farm tokens
 - [x] **#Step 22:** Use the Flyweight pattern so that cells not visible on the map do not use memory if they have not been modified
 - [x] **#Step 23:** Use the Memento pattern to preserve the state of modified cells when they are off screen
 - [x] **#Step 24:** Restore cell data when they return onto the screen
+
+## D3.d: Gameplay Across Real Space and Time
+
+Key technical challenge: Can your software remember game state even when the page is closed? Is the player character’s in-game movement controlled by the real-world geolocation of their device?
+
+Key gameplay challenge: Can the user test the game with multiple gameplay sessions, some involving real-world movement and some involving simulated movement?
+
+### Steps (d)
+
+- [ ] **#Step 25:** Use browser geolocation API to track players initial location
+- [ ] **#Step 26:** All player movement and interaction through real world movement, rather than buttons
+- [ ] **#Step 27:** Use the Facade design pattern to hide player movement
+- [ ] **#Step 28:** Provide a button to swap between button and real world based movement
+- [ ] **#Step 29:** Use localStorage API to store player data between loads
+- [ ] **#Step 30:** Provide a button to start a new game
