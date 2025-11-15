@@ -7,7 +7,10 @@ import "./style.css";
 
 // Constants-------------------------------------------------------------------------------------------------
 const CONST = {
-  SPAWN_POINT: leaflet.latLng(57.476538, -4.225123),
+  SPAWN_POINT: leaflet.latLng(
+    (await playerCurrentPosition()).lat,
+    (await playerCurrentPosition()).lng,
+  ),
   RECTANGLE_SPAWN_PROBABILITY: 0.2,
   GAMEPLAY_ZOOM_LEVEL: 19,
   TILE_DEGREES: 1e-4,
@@ -35,6 +38,17 @@ interface ActiveCell {
   rect: leaflet.Rectangle;
   rectToken: token;
   update: () => void;
+}
+
+function playerCurrentPosition(): Promise<{ lat: number; lng: number }> {
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (position: GeolocationPosition) => {
+        const { latitude: lat, longitude: lng } = position.coords;
+        resolve({ lat, lng });
+      },
+    );
+  });
 }
 
 // Flyweight pattern implementation--------------------------------------------------------------------------------
