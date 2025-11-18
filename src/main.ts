@@ -67,8 +67,6 @@ const flyweightFactory = new FlyweightFactory();
 // Memento Pattern implementation-------------------------------------------------------------------------------
 interface Memento {
   key: string;
-  // `null` means the cache empty by interaction;
-  // a `number` means the persisted token value for the cell (including 0).
   token: number | null;
 }
 
