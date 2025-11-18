@@ -14,7 +14,7 @@ const CONST = {
   RECTANGLE_SPAWN_PROBABILITY: 0.2,
   GAMEPLAY_ZOOM_LEVEL: 19,
   TILE_DEGREES: 1e-4,
-  MAX_REACH_DISTANCE: 28,
+  MAX_REACH_DISTANCE: 3,
   WIN_COUNT: 16,
   STYLE: {
     REACHABLE: { color: "#3388ff", fillColor: "#3388ff", fillOpacity: 0.2 },
@@ -119,9 +119,9 @@ class ActiveCell {
 
   updateUI(playerPos: leaflet.LatLng) {
     const center = this.rect.getBounds().getCenter();
-    const distance = map.distance(center, playerPos);
+    const cellDistance = getCellDistance(center, playerPos);
 
-    if (distance > CONST.MAX_REACH_DISTANCE) {
+    if (cellDistance > CONST.MAX_REACH_DISTANCE) {
       this.rect.setStyle(CONST.STYLE.UNREACHABLE);
     } else {
       this.rect.setStyle(CONST.STYLE.REACHABLE);
@@ -205,10 +205,8 @@ class CellManager {
 
   handleClick(active: ActiveCell) {
     const center = active.rect.getBounds().getCenter();
-    if (
-      map.distance(center, playerLocation.getLatLng()) >
-        CONST.MAX_REACH_DISTANCE
-    ) return;
+    const cellDistance = getCellDistance(center, playerLocation.getLatLng());
+    if (cellDistance > CONST.MAX_REACH_DISTANCE) return;
 
     const oldVal = active.token.value;
 
@@ -369,7 +367,7 @@ document.body.append(inventoryDiv);
 
 const movementSwapButton = document.createElement("button");
 movementSwapButton.id = "movementSwap";
-movementSwapButton.textContent = "Swap between geolocation and dpad movement";
+movementSwapButton.textContent = "Swap movement style";
 document.body.append(movementSwapButton);
 
 const newGameButton = document.createElement("button");
@@ -456,6 +454,18 @@ function winCondition(currentToken: number, winCount: number) {
 
 function cellKey(c: Cell) {
   return `${c.i},${c.j}`;
+}
+
+function getCellDistance(pos1: leaflet.LatLng, pos2: leaflet.LatLng): number {
+  const cell1I = Math.floor(pos1.lat / CONST.TILE_DEGREES);
+  const cell1J = Math.floor(pos1.lng / CONST.TILE_DEGREES);
+  const cell2I = Math.floor(pos2.lat / CONST.TILE_DEGREES);
+  const cell2J = Math.floor(pos2.lng / CONST.TILE_DEGREES);
+
+  const iDiff = Math.abs(cell1I - cell2I);
+  const jDiff = Math.abs(cell1J - cell2J);
+
+  return Math.max(iDiff, jDiff);
 }
 
 // Converts a cell id to Leaflet LatLngBounds
